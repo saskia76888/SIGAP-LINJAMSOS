@@ -1,4 +1,5 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -52,8 +53,9 @@ export default function KabidLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-indigo-950 text-white flex flex-col shrink-0">
+    /* PERUBAHAN UTAMA ADA DISINI: h-screen overflow-hidden bikin layout kekunci mentok layar */
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      <aside className="w-64 bg-indigo-950 text-white flex flex-col shrink-0 h-full">
         <div className="h-16 flex items-center gap-2 px-5 border-b border-indigo-900">
           <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -99,7 +101,8 @@ export default function KabidLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* Area main ini yang nantinya bisa di-scroll independen */}
+      <main className="flex-1 h-full overflow-y-auto">{children}</main>
     </div>
   )
 }

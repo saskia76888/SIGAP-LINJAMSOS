@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { Eye } from "lucide-react"
 
 type LaporanItem = {
   id: string
@@ -153,16 +154,36 @@ export default function VerifikasiPage() {
       case "diproses":
       case "survey":
       case "baru":
-        return <span className="text-blue-600 font-medium flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> {status}</span>
+        return (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> {status}
+          </span>
+        )
       case "diverifikasi":
-        return <span className="text-amber-600 font-medium flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"></span> {status}</span>
+        return (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {status}
+          </span>
+        )
       case "selesai":
       case "disetujui":
-        return <span className="text-emerald-600 font-medium flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Terverifikasi</span>
+        return (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Terverifikasi
+          </span>
+        )
       case "ditolak":
-        return <span className="text-rose-600 font-medium flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500"></span> Ditolak</span>
+        return (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Ditolak
+          </span>
+        )
       default:
-        return <span className="text-gray-600 font-medium">{status || "Baru"}</span>
+        return (
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 bg-gray-50 text-gray-700 border border-gray-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> {status || "Baru"}
+          </span>
+        )
     }
   }
 
@@ -183,20 +204,20 @@ export default function VerifikasiPage() {
       {/* Header Halaman */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-blue-950 tracking-tight">Verifikasi Laporan</h1>
+          <h1 className="text-3xl font-extrabold text-[#1e1b4b] tracking-tight">Verifikasi Laporan</h1>
           <p className="text-xs text-gray-500 mt-1">Manajemen terpusat database verifikasi laporan dan usulan bantuan sosial warga.</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => alert("Fitur Ekspor Excel aktif.")}
-            className="bg-blue-950 hover:bg-blue-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2"
+            className="bg-[#1e1b4b] hover:bg-purple-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2"
           >
             Export Excel
           </button>
         </div>
       </div>
 
-      {/* Bar Pencarian & Filter ala Referensi */}
+      {/* Bar Pencarian & Filter */}
       <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-sm flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[260px]">
           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -207,14 +228,14 @@ export default function VerifikasiPage() {
             value={search} 
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari Nama atau NIK..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50/80 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-blue-600 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50/80 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-purple-600 transition-all"
           />
         </div>
 
         <select 
           value={filterJenis} 
           onChange={(e) => setFilterJenis(e.target.value)} 
-          className="bg-gray-50/80 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-blue-600 transition-all"
+          className="bg-gray-50/80 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-purple-600 transition-all"
         >
           <option value="semua">Jenis Bantuan: Semua</option>
           <option value="bansos">Bansos</option>
@@ -225,7 +246,7 @@ export default function VerifikasiPage() {
         <select 
           value={filterStatus} 
           onChange={(e) => setFilterStatus(e.target.value)} 
-          className="bg-gray-50/80 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-blue-600 transition-all uppercase"
+          className="bg-gray-50/80 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-purple-600 transition-all uppercase"
         >
           <option value="semua">Semua Status</option>
           {statusOptions.map((s) => (
@@ -242,7 +263,7 @@ export default function VerifikasiPage() {
         </button>
       </div>
 
-      {/* Tabel Bersih Tanpa Blok Abu-abu */}
+      {/* Tabel */}
       <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -265,14 +286,14 @@ export default function VerifikasiPage() {
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="py-4 px-6 font-mono text-blue-600 font-bold">{item.no_tiket}</td>
+                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
+                    <td className="py-4 px-6 font-mono text-purple-700 font-bold">{item.no_tiket}</td>
                     <td className="py-4 px-6">
-                      <p className="font-bold text-gray-900 text-sm">{item.judul}</p>
+                      <p className="font-bold text-gray-900 text-sm capitalize">{item.judul}</p>
                       <p className="text-[11px] text-gray-400">Pengusul: {item.raw.users?.nama || "RT/RW Setempat"}</p>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="bg-slate-100 text-slate-700 font-semibold px-2.5 py-1 rounded-md text-[10px] uppercase">
+                      <span className="bg-purple-50 text-purple-700 font-semibold px-2.5 py-1 rounded-md text-[10px] uppercase">
                         {getJenisLabel(item.jenis)}
                       </span>
                     </td>
@@ -285,14 +306,10 @@ export default function VerifikasiPage() {
                     <td className="py-4 px-6 text-right">
                       <button 
                         onClick={() => openDetail(item)} 
-                        className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 hover:bg-blue-50 hover:border-blue-200 text-gray-600 hover:text-blue-600 inline-flex items-center justify-center transition-all shadow-sm"
+                        className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 hover:bg-purple-100 hover:border-purple-200 text-gray-600 hover:text-purple-700 inline-flex items-center justify-center transition-all shadow-sm"
                         title="Lihat Detail & Verifikasi"
                       >
-                        {/* Ikon Mata (Eye Icon) */}
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -302,7 +319,7 @@ export default function VerifikasiPage() {
           </table>
         </div>
 
-        {/* Footer Pagination Buatan */}
+        {/* Footer Pagination */}
         <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-white">
           <span>Menampilkan <span className="font-semibold text-gray-800">{filtered.length}</span> data laporan</span>
           <div className="flex items-center gap-1">
@@ -313,14 +330,14 @@ export default function VerifikasiPage() {
 
       {/* Modal Detail & Aksi Verifikasi */}
       {selected && (
-        <div className="fixed inset-0 bg-blue-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeDetail}>
+        <div className="fixed inset-0 bg-[#1e1b4b]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeDetail}>
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-gray-100 space-y-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-start border-b border-gray-100 pb-4">
               <div>
-                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md uppercase tracking-wide">
+                <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md uppercase tracking-wide">
                   {getJenisLabel(selected.jenis)}
                 </span>
-                <h2 className="text-lg font-bold text-blue-950 mt-2">{selected.judul}</h2>
+                <h2 className="text-lg font-bold text-[#1e1b4b] mt-2 capitalize">{selected.judul}</h2>
                 <p className="text-xs text-gray-400 font-mono mt-0.5">Tiket: {selected.no_tiket}</p>
               </div>
               <button onClick={closeDetail} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">✕</button>
@@ -372,7 +389,7 @@ export default function VerifikasiPage() {
                 <select 
                   value={statusBaru} 
                   onChange={(e) => setStatusBaru(e.target.value)} 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-600 transition-all uppercase"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-semibold text-gray-900 focus:outline-none focus:border-purple-600 transition-all uppercase"
                 >
                   {statusOptions.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -387,14 +404,14 @@ export default function VerifikasiPage() {
                   onChange={(e) => setCatatan(e.target.value)} 
                   rows={3}
                   placeholder="Tuliskan catatan hasil survey lapangan atau alasan persetujuan/penolakan..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:border-blue-600 transition-all"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:border-purple-600 transition-all"
                 />
               </div>
 
               <button
                 onClick={handleUpdateStatus} 
                 disabled={saving}
-                className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl py-3.5 transition-all shadow-sm"
+                className="w-full bg-[#1e1b4b] hover:bg-purple-900 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl py-3.5 transition-all shadow-sm"
               >
                 {saving ? "Menyimpan Perubahan..." : "Simpan Status & Catatan"}
               </button>

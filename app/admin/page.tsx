@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { FileText, AlertTriangle, CheckCircle2, XCircle, Download } from "lucide-react"
 
 type RiwayatItem = {
   id: string
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
       case "diproses":
       case "survey":
       case "baru":
-        return "bg-blue-50 text-blue-700 border border-blue-200"
+        return "bg-purple-50 text-purple-700 border border-purple-200"
       case "diverifikasi":
         return "bg-amber-50 text-amber-800 border border-amber-200"
       case "selesai":
@@ -101,79 +102,71 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      
       {/* Header & Tombol Ekspor */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-blue-950 tracking-tight">Dashboard Verifikasi</h1>
+          <h1 className="text-3xl font-extrabold text-[#1e1b4b] tracking-tight">Dashboard Verifikasi</h1>
           <p className="text-xs text-gray-500 mt-1">Selamat datang kembali, berikut ringkasan data bantuan sosial dan laporan darurat hari ini.</p>
         </div>
         <button 
           onClick={() => alert("Fitur ekspor data laporan ke Excel/PDF aktif.")}
-          className="bg-blue-950 hover:bg-blue-900 text-white font-medium text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all self-start sm:self-auto"
+          className="bg-[#1e1b4b] hover:bg-purple-900 text-white font-semibold text-xs px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all self-start sm:self-auto"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+          <Download className="w-4 h-4" />
           Ekspor Data
         </button>
       </div>
 
-      {/* 4 Kotak Statistik */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Masuk</p>
-            <h3 className="text-3xl font-extrabold text-blue-950">{totalLaporan}</h3>
-            <p className="text-[11px] text-emerald-600 font-medium pt-1">↑ Real-time dari sistem</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Perlu Verifikasi</p>
-            <h3 className="text-3xl font-extrabold text-amber-600">{menungguVerifikasi}</h3>
-            <p className="text-[11px] text-amber-600 font-medium pt-1">! Menunggu tindakan</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+      {/* 4 Kotak Statistik (Gaya Semi-Solid & Berkarakter) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-gradient-to-br from-purple-900 to-[#1e1b4b] text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+          <p className="text-[11px] font-semibold text-purple-200 uppercase tracking-wider">Total Masuk</p>
+          <h3 className="text-4xl font-extrabold tracking-tight mt-2">{totalLaporan}</h3>
+          <div className="mt-4 flex items-center justify-between text-xs text-purple-200 border-t border-white/10 pt-3">
+            <span>Real-time sistem</span>
+            <FileText className="w-4 h-4 text-purple-300" />
           </div>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Selesai / Diterima</p>
-            <h3 className="text-3xl font-extrabold text-emerald-600">{terverifikasi}</h3>
-            <p className="text-[11px] text-emerald-600 font-medium pt-1">✓ Berhasil diproses</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div className="bg-white border-2 border-amber-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+          <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">Perlu Verifikasi</p>
+          <h3 className="text-4xl font-extrabold text-gray-900 tracking-tight mt-2">{menungguVerifikasi}</h3>
+          <div className="mt-4 flex items-center justify-between text-xs text-amber-700 border-t border-amber-50 pt-3 font-medium">
+            <span>! Menunggu tindakan</span>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ditolak</p>
-            <h3 className="text-3xl font-extrabold text-rose-600">{ditolak}</h3>
-            <p className="text-[11px] text-rose-600 font-medium pt-1">✕ Tidak memenuhi syarat</p>
+        <div className="bg-white border-2 border-emerald-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+          <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Selesai / Diterima</p>
+          <h3 className="text-4xl font-extrabold text-gray-900 tracking-tight mt-2">{terverifikasi}</h3>
+          <div className="mt-4 flex items-center justify-between text-xs text-emerald-700 border-t border-emerald-50 pt-3 font-medium">
+            <span>✓ Berhasil diproses</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </div>
+
+        <div className="bg-white border-2 border-rose-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+          <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider">Ditolak</p>
+          <h3 className="text-4xl font-extrabold text-gray-900 tracking-tight mt-2">{ditolak}</h3>
+          <div className="mt-4 flex items-center justify-between text-xs text-rose-700 border-t border-rose-50 pt-3 font-medium">
+            <span>✕ Tidak memenuhi syarat</span>
+            <XCircle className="w-4 h-4 text-rose-500" />
           </div>
         </div>
       </div>
 
       {/* Tabel Antrean Verifikasi (Data dari Supabase) */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-bold text-sm text-gray-900">Daftar Antrean Verifikasi Terbaru</h3>
+            <h3 className="font-bold text-sm text-[#1e1b4b]">Daftar Antrean Verifikasi Terbaru</h3>
             <p className="text-xs text-gray-400 mt-0.5">Menampilkan pengajuan usulan bansos dan darurat warga secara langsung.</p>
           </div>
           <button 
             onClick={() => router.push("/admin/verifikasi")}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+            className="text-xs font-semibold text-purple-600 hover:text-purple-900 transition-colors inline-flex items-center gap-1"
           >
             Lihat Semua →
           </button>
@@ -194,40 +187,40 @@ export default function AdminDashboard() {
             <tbody className="divide-y divide-gray-100 text-gray-700">
               {semuaData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-400 text-xs">
+                  <td colSpan={6} className="py-12 text-center text-gray-400 text-xs">
                     Belum ada data usulan atau laporan masuk dari database.
                   </td>
                 </tr>
               ) : (
                 semuaData.slice(0, 5).map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 uppercase">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 font-bold flex items-center justify-center shrink-0 uppercase">
                           {item.judul.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{item.judul}</p>
+                          <p className="font-bold text-gray-900">{item.judul}</p>
                           <p className="text-[11px] text-gray-400">{item.keterangan}</p>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6 font-medium uppercase text-[11px] text-slate-600">
-                      <span className="bg-slate-100 px-2 py-1 rounded-md">{item.jenis}</span>
+                      <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-md font-semibold text-[10px]">{item.jenis}</span>
                     </td>
-                    <td className="py-4 px-6 font-mono text-blue-600 font-bold">{item.no_tiket}</td>
+                    <td className="py-4 px-6 font-mono text-purple-600 font-bold">{item.no_tiket}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase ${getStatusBadge(item.status)}`}>
                         {item.status}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-gray-500">
+                    <td className="py-4 px-6 text-gray-500 font-medium">
                       {new Date(item.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td className="py-4 px-6 text-right">
                       <button 
                         onClick={() => router.push(`/cek-status?tiket=${item.no_tiket}`)}
-                        className="font-semibold text-blue-600 hover:underline"
+                        className="font-semibold text-purple-600 hover:text-purple-900 hover:underline"
                       >
                         Proses
                       </button>
@@ -242,8 +235,8 @@ export default function AdminDashboard() {
 
       {/* Bagian Bawah: Statistik Bulanan & Aktivitas Terkini */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm lg:col-span-2 space-y-6">
-          <h3 className="font-bold text-sm text-gray-900">Statistik Pengajuan Bulanan</h3>
+        <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm lg:col-span-2 space-y-6">
+          <h3 className="font-bold text-sm text-[#1e1b4b]">Statistik Pengajuan Bulanan</h3>
           <div className="h-48 flex items-end justify-between gap-4 pt-4 px-2">
             {[
               { bulan: "Juni", tinggi: "h-24" },
@@ -253,35 +246,35 @@ export default function AdminDashboard() {
               { bulan: "Oktober", tinggi: "h-36" },
             ].map((bar, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                <div className={`w-full max-w-[48px] rounded-t-xl transition-all ${bar.tinggi} ${bar.aktif ? 'bg-blue-600' : 'bg-gray-100'}`} />
+                <div className={`w-full max-w-[48px] rounded-t-xl transition-all ${bar.tinggi} ${bar.aktif ? 'bg-purple-600' : 'bg-gray-100'}`} />
                 <span className="text-[11px] text-gray-400 font-medium">{bar.bulan}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-6 flex flex-col justify-between">
+        <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
-            <h3 className="font-bold text-sm text-gray-900">Aktivitas Terkini</h3>
+            <h3 className="font-bold text-sm text-[#1e1b4b]">Aktivitas Terkini</h3>
             <div className="space-y-4 text-xs">
               <div className="flex gap-3 items-start">
-                <span className="w-2 h-2 rounded-full bg-blue-600 mt-1 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-purple-600 mt-1 shrink-0" />
                 <div>
-                  <p className="text-gray-900">Sistem berhasil menyinkronkan data <b>Supabase</b></p>
+                  <p className="text-gray-900 font-medium">Sistem berhasil menyinkronkan data <b>Supabase</b></p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Baru saja</p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <span className="w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0" />
                 <div>
-                  <p className="text-gray-900">Antrean verifikasi baru masuk dari wilayah RT/RW</p>
+                  <p className="text-gray-900 font-medium">Antrean verifikasi baru masuk dari wilayah RT/RW</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Hari ini</p>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
                 <div>
-                  <p className="text-gray-900">Mini-DTKS diperbarui secara otomatis</p>
+                  <p className="text-gray-900 font-medium">Mini-DTKS diperbarui secara otomatis</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">1 jam yang lalu</p>
                 </div>
               </div>
@@ -289,13 +282,12 @@ export default function AdminDashboard() {
           </div>
           <button 
             onClick={() => alert("Log aktivitas lengkap.")}
-            className="w-full py-2.5 border border-gray-200 rounded-xl font-medium text-xs text-gray-700 hover:bg-gray-50 transition-all"
+            className="w-full py-2.5 border border-gray-200 rounded-xl font-semibold text-xs text-gray-700 hover:bg-gray-50 transition-all"
           >
             Lihat Semua Log
           </button>
         </div>
       </div>
-
     </div>
   )
 }

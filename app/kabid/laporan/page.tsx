@@ -1,6 +1,8 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { CheckCircle2, XCircle, Clock, Download } from "lucide-react"
 
 export default function LaporanKabidPage() {
   const [loading, setLoading] = useState(true)
@@ -58,63 +60,117 @@ export default function LaporanKabidPage() {
   }
 
   if (loading) {
-    return <div className="p-8 text-sm text-gray-500">Memuat laporan...</div>
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-medium text-gray-500 animate-pulse">Memuat laporan pertanggungjawaban...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-indigo-950">Laporan Pertanggungjawaban</h1>
-        <p className="text-sm text-gray-500 mt-1">Rekap keputusan yang sudah diambil untuk pelaporan resmi.</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-gray-400">Disetujui</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{stats.disetujui}</p>
+    <div className="p-6 lg:p-8 space-y-6 bg-gray-50/30 min-h-screen">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-all duration-300 hover:shadow-md">
+        <div>
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold mb-2">
+            Dokumentasi & Arsip Resmi
+          </div>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Laporan Pertanggungjawaban</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Rekap keputusan yang sudah diambil untuk pelaporan resmi.</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-gray-400">Ditolak</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">{stats.ditolak}</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-gray-400">Masih Menunggu</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{stats.menunggu}</p>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
         <button
           onClick={exportSemua}
-          className="bg-indigo-950 hover:bg-indigo-900 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
+          className="inline-flex items-center gap-2 bg-[#1e1b4b] hover:bg-purple-900 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-sm transition-all duration-200 hover:scale-105 shrink-0"
         >
-          Export Rekap (CSV)
+          <Download className="w-4 h-4" />
+          <span>Export Rekap (CSV)</span>
         </button>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Jenis</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Nama/Judul</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">No. Tiket</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Status</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase">Tanggal</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {semuaData.slice(0, 20).map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-xs text-gray-500">{item.jenis}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{item.judul}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.no_tiket}</td>
-                <td className="px-4 py-3 text-xs text-gray-700">{item.status}</td>
-                <td className="px-4 py-3 text-xs text-gray-500">{new Date(item.created_at).toLocaleDateString("id-ID")}</td>
+      {/* Kartu Statistik - Diselaraskan tema ungu */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Disetujui</span>
+            <CheckCircle2 className="w-5 h-5 text-purple-600" />
+          </div>
+          <p className="text-3xl font-extrabold text-purple-600 tracking-tight">{stats.disetujui}</p>
+          <div className="mt-3 inline-block px-2.5 py-1 bg-purple-50 rounded-lg text-xs font-medium text-purple-700">
+            Tervalidasi & Selesai
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Ditolak</span>
+            <XCircle className="w-5 h-5 text-purple-600" />
+          </div>
+          <p className="text-3xl font-extrabold text-purple-600 tracking-tight">{stats.ditolak}</p>
+          <div className="mt-3 inline-block px-2.5 py-1 bg-purple-50 rounded-lg text-xs font-medium text-purple-700">
+            Tidak memenuhi syarat
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Masih Menunggu</span>
+            <Clock className="w-5 h-5 text-purple-600 animate-pulse" />
+          </div>
+          <p className="text-3xl font-extrabold text-purple-600 tracking-tight">{stats.menunggu}</p>
+          <div className="mt-3 inline-block px-2.5 py-1 bg-purple-50 rounded-lg text-xs font-medium text-purple-700">
+            Menunggu review lanjutan
+          </div>
+        </div>
+
+      </div>
+
+      {/* Tabel Data */}
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-700">Arsip Data Masuk (20 Teratas)</span>
+          <span className="text-xs text-purple-600 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg">Total Tercatat: {semuaData.length}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-3.5">Jenis</th>
+                <th className="px-6 py-3.5">Nama/Judul</th>
+                <th className="px-6 py-3.5">No. Tiket</th>
+                <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5">Tanggal</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {semuaData.slice(0, 20).map((item) => (
+                <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
+                  <td className="px-6 py-4 text-xs">
+                    <span className="inline-flex px-2.5 py-1 bg-purple-50 text-purple-700 rounded-md font-medium">
+                      {item.jenis}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900">{item.judul}</td>
+                  <td className="px-6 py-4 font-mono text-xs text-purple-600 font-medium">{item.no_tiket}</td>
+                  <td className="px-6 py-4 text-xs">
+                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700">
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-500">
+                    {new Date(item.created_at).toLocaleDateString("id-ID", {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
