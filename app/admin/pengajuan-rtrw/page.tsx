@@ -12,6 +12,7 @@ type Pengajuan = {
   alasan: string | null
   status: string
   created_at: string
+  sk_url: string | null
 }
 
 export default function PengajuanRtRwPage() {
@@ -22,6 +23,8 @@ export default function PengajuanRtRwPage() {
   const [selected, setSelected] = useState<Pengajuan | null>(null)
   const [editing, setEditing] = useState<Pengajuan | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [filterRiwayatStatus, setFilterRiwayatStatus] = useState("semua")
@@ -200,51 +203,40 @@ export default function PengajuanRtRwPage() {
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto min-h-screen pb-20 font-sans text-slate-100">
       
-      {/* STATISTIK - Diubah meniru persis gaya referensi gambar */}
+      {/* STATISTIK */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {/* Card 1: Menunggu Persetujuan */}
-        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between">
+        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/5 rounded-full blur-2xl pointer-events-none"></div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Menunggu Persetujuan</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-2xl font-black text-white">{pending.length}</h3>
-              <span className="text-xs font-bold text-amber-400">Tertunda</span>
-            </div>
+            <h3 className="text-2xl font-black text-amber-400 mt-1">{pending.length}</h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-purple-600/30">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div className="w-12 h-12 rounded-2xl bg-purple-950/60 text-amber-400 flex items-center justify-center border border-purple-800/40 shadow-inner">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
         </div>
 
-        {/* Card 2: Total Disetujui */}
-        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between">
+        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/5 rounded-full blur-2xl pointer-events-none"></div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Disetujui</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-2xl font-black text-white">{totalDisetujui}</h3>
-              <span className="text-xs font-bold text-emerald-400">Aktif</span>
-            </div>
+            <h3 className="text-2xl font-black text-emerald-400 mt-1">{totalDisetujui}</h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-600/30">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div className="w-12 h-12 rounded-2xl bg-purple-950/60 text-emerald-400 flex items-center justify-center border border-purple-800/40 shadow-inner">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
         </div>
 
-        {/* Card 3: Total Ditolak */}
-        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between">
+        <div className="bg-[#121629] p-5 rounded-2xl border border-purple-950/40 shadow-lg flex items-center justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/5 rounded-full blur-2xl pointer-events-none"></div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Ditolak</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-2xl font-black text-white">{totalDitolak}</h3>
-              <span className="text-xs font-bold text-rose-400">Ditolak</span>
-            </div>
+            <h3 className="text-2xl font-black text-rose-400 mt-1">{totalDitolak}</h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-pink-500 text-white flex items-center justify-center shadow-md shadow-rose-600/30">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div className="w-12 h-12 rounded-2xl bg-purple-950/60 text-rose-400 flex items-center justify-center border border-purple-800/40 shadow-inner">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
         </div>
-
       </div>
 
       <div>
@@ -271,7 +263,7 @@ export default function PengajuanRtRwPage() {
         </div>
       )}
 
-      {/* Bagian Menunggu Persetujuan */}
+      {/* Menunggu Persetujuan */}
       <div>
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Menunggu Persetujuan ({pending.length})</h2>
         <div className="bg-[#121629] border border-purple-950/40 rounded-2xl shadow-lg overflow-hidden">
@@ -293,6 +285,20 @@ export default function PengajuanRtRwPage() {
                       {item.alasan && (
                         <div className="mt-2 text-xs text-slate-300 bg-slate-900/80 border border-purple-950/60 rounded-xl px-3 py-1.5 italic inline-block">
                           &ldquo;{item.alasan}&rdquo;
+                        </div>
+                      )}
+                      {item.sk_url ? (
+                        <div className="mt-2">
+                          <button
+                            onClick={() => setPreviewUrl(item.sk_url)}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-sky-400 hover:text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-2.5 py-1.5 transition-all"
+                          >
+                            📄 Lihat Dokumen SK
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-[11px] font-bold text-rose-400 bg-rose-950/30 border border-rose-900/40 rounded-lg px-2.5 py-1.5 inline-block">
+                          ⚠️ SK belum diupload
                         </div>
                       )}
                     </div>
@@ -334,7 +340,7 @@ export default function PengajuanRtRwPage() {
         </div>
       </div>
 
-      {/* Bagian Riwayat Diproses */}
+      {/* Riwayat Diproses */}
       <div className="space-y-3 pt-2">
         <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Riwayat Diproses</h2>
@@ -426,6 +432,12 @@ export default function PengajuanRtRwPage() {
                 password akan langsung dikirim ke WhatsApp <strong className="text-slate-200">{selected.no_hp}</strong>.
               </p>
             </div>
+
+            {!selected.sk_url && (
+              <div className="bg-rose-950/40 border border-rose-900/50 rounded-xl p-3 text-[11px] text-rose-300 leading-relaxed">
+                ⚠️ Pengajuan ini belum melampirkan SK RT/RW. Pastikan sudah diverifikasi manual sebelum disetujui.
+              </div>
+            )}
             
             <div className="bg-amber-950/40 border border-amber-900/50 rounded-xl p-3 text-[11px] text-amber-300 leading-relaxed">
               💡 Kalau pengiriman WhatsApp gagal, password akan ditampilkan di layar sebagai cadangan supaya tetap bisa disampaikan manual.
@@ -517,6 +529,51 @@ export default function PengajuanRtRwPage() {
               >
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Preview Dokumen SK */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div
+            className="bg-[#121629] border border-purple-950/80 rounded-2xl max-w-2xl w-full max-h-[85vh] p-4 shadow-2xl space-y-3 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-black text-white">Dokumen SK</h2>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-bold text-sky-400 hover:text-sky-300 bg-sky-950/40 border border-sky-900/50 rounded-lg px-2.5 py-1.5 transition-all"
+                >
+                  Buka Tab Baru
+                </a>
+                <button
+                  onClick={() => setPreviewUrl(null)}
+                  className="text-slate-400 hover:text-white font-bold text-lg px-1"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto rounded-xl bg-slate-950/50 flex items-center justify-center">
+              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe src={previewUrl} className="w-full h-[70vh] rounded-xl" />
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt="Dokumen SK"
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl"
+                />
+              )}
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 
 export default function SuperadminDashboard() {
   const [loading, setLoading] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(true)
   
   const [stats, setStats] = useState({
     totalUser: 0,
@@ -42,6 +42,31 @@ export default function SuperadminDashboard() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [loopNum, setLoopNum] = useState(0)
   const [typingSpeed, setTypingSpeed] = useState(50)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("sigap_theme")
+    if (savedTheme) {
+      setDarkMode(savedTheme === "dark")
+    }
+  }, [])
+
+  const toggleDarkMode = () => {
+    const nextMode = !darkMode
+    setDarkMode(nextMode)
+    localStorage.setItem("sigap_theme", nextMode ? "dark" : "light")
+    window.dispatchEvent(new Event("storage"))
+  }
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const savedTheme = localStorage.getItem("sigap_theme")
+      if (savedTheme) {
+        setDarkMode(savedTheme === "dark")
+      }
+    }
+    window.addEventListener("storage", handleStorage)
+    return () => window.removeEventListener("storage", handleStorage)
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -151,7 +176,7 @@ export default function SuperadminDashboard() {
             
             {/* Tombol Mode Malam diposisikan absolute di kanan atas card agar pas dan rapi */}
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleDarkMode}
               className={`absolute right-0 top-0 w-10 h-10 rounded-2xl transition-all flex items-center justify-center shrink-0 ${
                 darkMode 
                   ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.6)] animate-pulse' 
