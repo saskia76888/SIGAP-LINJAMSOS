@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
 import { supabase } from "@/lib/supabase"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -8,13 +9,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [nama, setNama] = useState("")
   const [checking, setChecking] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+
+  // Pakai next-themes sebagai satu-satunya sumber kebenaran untuk tema,
+  // biar sinkron dengan class `dark:` di children (AdminDashboard, dll)
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("admin_theme")
-    if (savedTheme === "dark") {
-      setDarkMode(true)
-    }
+    // next-themes butuh ini supaya gak mismatch pas hydration
+    setMounted(true)
 
     async function checkAccess() {
       const { data: sessionData } = await supabase.auth.getSession()
@@ -42,10 +45,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     checkAccess()
   }, [router])
 
+  const darkMode = mounted && resolvedTheme === "dark"
+
   function toggleDarkMode() {
-    const newMode = !darkMode
-    setDarkMode(newMode)
-    localStorage.setItem("admin_theme", newMode ? "dark" : "light")
+    setTheme(darkMode ? "light" : "dark")
   }
 
   async function handleLogout() {
@@ -70,11 +73,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       
       {/* Sidebar Kiri */}
       <aside className={`w-64 flex flex-col shrink-0 border-r sticky top-0 h-screen transition-colors duration-300 ${
-        darkMode ? "bg-[#070b14]/90 backdrop-blur-md border-indigo-500/20 shadow-[4px_0_24px_rgba(0,0,0,0.4)]" : "bg-blue-950 border-blue-900 text-white"
+        darkMode ? "bg-[#0e0a1f]/90 backdrop-blur-md border-purple-500/20 shadow-[4px_0_24px_rgba(0,0,0,0.4)]" : "bg-[#1e1b4b] border-purple-900 text-white"
       }`}>
         <div className="h-16 flex items-center justify-between px-5 border-b border-inherit">
           <div className="flex items-center gap-2.5">
-            <svg className={`w-6 h-6 ${darkMode ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.6)]" : "text-white"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg className={`w-6 h-6 ${darkMode ? "text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.6)]" : "text-white"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
             <span className="font-bold text-sm tracking-wider uppercase">Sigap Bansos</span>
@@ -91,11 +94,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
                   active 
                     ? darkMode 
-                      ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]" 
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]" 
                       : "bg-white/10 text-white" 
                     : darkMode 
                       ? "text-gray-400 hover:bg-white/5 hover:text-white" 
-                      : "text-blue-200 hover:bg-white/5 hover:text-white"
+                      : "text-purple-200 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -108,9 +111,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Info User */}
-        <div className={`p-3 border-t ${darkMode ? "border-indigo-500/10" : "border-blue-900"}`}>
+        <div className={`p-3 border-t ${darkMode ? "border-purple-500/10" : "border-purple-900"}`}>
           <div className="px-3 py-2 mb-1">
-            <p className={`text-[10px] ${darkMode ? "text-indigo-400 font-medium" : "text-blue-200"}`}>Masuk sebagai</p>
+            <p className={`text-[10px] ${darkMode ? "text-purple-400 font-medium" : "text-purple-200"}`}>Masuk sebagai</p>
             <p className="text-xs font-bold truncate mt-0.5">{nama}</p>
           </div>
           <button
@@ -130,13 +133,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         
         {/* Header Atas dengan Tombol Toggle Glow */}
         <header className={`h-16 px-6 lg:px-8 border-b flex items-center justify-end sticky top-0 z-40 transition-colors duration-300 ${
-          darkMode ? "bg-[#090d16]/80 backdrop-blur-md border-indigo-500/20" : "bg-white border-gray-200"
+          darkMode ? "bg-[#12101f]/80 backdrop-blur-md border-purple-500/20" : "bg-white border-gray-200"
         }`}>
           <button
             onClick={toggleDarkMode}
             className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all duration-300 ${
               darkMode 
-                ? "bg-indigo-950/60 border-indigo-500/40 text-amber-400 shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:scale-105" 
+                ? "bg-purple-950/60 border-purple-500/40 text-amber-400 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:scale-105" 
                 : "bg-gray-100 border-gray-200 text-slate-700 hover:bg-gray-200 hover:scale-105"
             }`}
             title={darkMode ? "Ubah ke Mode Terang" : "Ubah ke Mode Malam"}

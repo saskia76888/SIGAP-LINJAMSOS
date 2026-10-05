@@ -1,12 +1,12 @@
 "use client"
 import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 import { supabase } from "@/lib/supabase"
 
 export default function LaporanPage() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalBansos: 0,
-    totalOdgj: 0,
     totalBencana: 0,
     totalDisetujui: 0,
     totalDitolak: 0,
@@ -14,27 +14,27 @@ export default function LaporanPage() {
   const [semuaData, setSemuaData] = useState<any[]>([])
   const [filterJenis, setFilterJenis] = useState("semua")
   const [filterStatus, setFilterStatus] = useState("semua")
-  const [isDark, setIsDark] = useState(false)
+
+  // Pakai next-themes sebagai satu-satunya sumber kebenaran untuk tema,
+  // biar sinkron dengan toggle di AdminLayout dan reaktif kalau diganti
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  const isDark = mounted && resolvedTheme === "dark"
 
   useEffect(() => {
-    // Deteksi apakah mode malam sedang aktif dari localStorage
-    const theme = localStorage.getItem("admin_theme")
-    if (theme === "dark") setIsDark(true)
+    setMounted(true)
 
     async function loadStats() {
-      const [bansosRes, odgjRes, bencanaRes] = await Promise.all([
+      const [bansosRes, bencanaRes] = await Promise.all([
         supabase.from("usulan_bansos").select("id, no_tiket, nama_warga, status, created_at"),
-        supabase.from("laporan_odgj").select("id, no_tiket, nama_terlapor, status, created_at"),
         supabase.from("laporan_bencana").select("id, no_tiket, lokasi, status, created_at"),
       ])
 
       const bansos = bansosRes.data || []
-      const odgj = odgjRes.data || []
       const bencana = bencanaRes.data || []
 
       const semua = [
         ...bansos.map((d: any) => ({ ...d, jenis: "Bansos", judul: d.nama_warga })),
-        ...odgj.map((d: any) => ({ ...d, jenis: "Darurat Sosial", judul: d.nama_terlapor || "Tanpa nama" })),
         ...bencana.map((d: any) => ({ ...d, jenis: "Bencana", judul: d.lokasi })),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
@@ -42,7 +42,6 @@ export default function LaporanPage() {
 
       setStats({
         totalBansos: bansos.length,
-        totalOdgj: odgj.length,
         totalBencana: bencana.length,
         totalDisetujui: semua.filter((d) => d.status === "disetujui" || d.status === "selesai").length,
         totalDitolak: semua.filter((d) => d.status === "ditolak").length,
@@ -144,15 +143,11 @@ export default function LaporanPage() {
         </div>
       </div>
 
-      {/* 5 Kotak Statistik */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 print:hidden">
+      {/* Kotak Statistik */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <div className={`${cardStyle} rounded-2xl p-5 space-y-1 transition-all`}>
           <p className="text-[11px] font-semibold opacity-50 uppercase tracking-wider">Usulan Bansos</p>
           <p className="text-2xl font-extrabold text-blue-400">{stats.totalBansos}</p>
-        </div>
-        <div className={`${cardStyle} rounded-2xl p-5 space-y-1 transition-all`}>
-          <p className="text-[11px] font-semibold opacity-50 uppercase tracking-wider">Darurat Sosial</p>
-          <p className="text-2xl font-extrabold text-teal-400">{stats.totalOdgj}</p>
         </div>
         <div className={`${cardStyle} rounded-2xl p-5 space-y-1 transition-all`}>
           <p className="text-[11px] font-semibold opacity-50 uppercase tracking-wider">Bencana</p>
@@ -182,7 +177,6 @@ export default function LaporanPage() {
             >
               <option value="semua">Semua Jenis</option>
               <option value="bansos">Bansos</option>
-              <option value="darurat sosial">Darurat Sosial</option>
               <option value="bencana">Bencana</option>
             </select>
           </div>

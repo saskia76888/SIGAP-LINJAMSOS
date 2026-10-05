@@ -64,26 +64,26 @@ export default function MasterDataPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-medium text-slate-400 animate-pulse">Memuat master data...</p>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">Memuat master data...</p>
       </div>
     )
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto min-h-screen pb-20 font-sans text-slate-100">
+    <div className="p-8 space-y-6 max-w-7xl mx-auto min-h-screen pb-20 font-sans text-slate-900 dark:text-slate-100">
       <div>
-        <h1 className="text-xl font-black text-white tracking-tight">Master Data</h1>
-        <p className="text-xs text-slate-400 mt-1">Kelola kategori bantuan dan kategori bencana.</p>
+        <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Master Data</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola kategori bantuan dan kategori bencana.</p>
       </div>
 
       {/* Tab Navigasi */}
-      <div className="flex gap-2 border-b border-purple-950/40">
+      <div className="flex gap-2 border-b border-slate-200 dark:border-purple-950/40">
         <button
           onClick={() => setTab("bantuan")}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
             tab === "bantuan" 
-              ? "border-purple-500 text-white" 
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              ? "border-purple-500 text-slate-900 dark:text-white" 
+              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           }`}
         >
           Kategori Bantuan
@@ -92,8 +92,8 @@ export default function MasterDataPage() {
           onClick={() => setTab("bencana")}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
             tab === "bencana" 
-              ? "border-purple-500 text-white" 
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              ? "border-purple-500 text-slate-900 dark:text-white" 
+              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           }`}
         >
           Kategori Bencana
@@ -101,21 +101,21 @@ export default function MasterDataPage() {
       </div>
 
       {/* Form Tambah Kategori */}
-      <div className="bg-[#121629] border border-purple-950/40 rounded-2xl p-5 shadow-lg space-y-3">
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Tambah Kategori Baru</h3>
+      <div className="bg-white dark:bg-[#121629] border border-slate-200 dark:border-purple-950/40 rounded-2xl p-5 shadow-sm dark:shadow-lg space-y-3">
+        <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Tambah Kategori Baru</h3>
         <div className="flex flex-col md:flex-row gap-3">
           <input
             value={namaBaru} 
             onChange={(e) => setNamaBaru(e.target.value)}
             placeholder="Nama kategori..."
-            className="flex-1 border border-purple-950/40 bg-slate-900/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-white focus:outline-none focus:border-purple-500 focus:bg-slate-900 transition-all placeholder:text-slate-500"
+            className="flex-1 border border-slate-200 dark:border-purple-950/40 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 focus:bg-white dark:focus:bg-slate-900 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
           {tab === "bantuan" && (
             <input
               value={deskripsiBaru} 
               onChange={(e) => setDeskripsiBaru(e.target.value)}
               placeholder="Deskripsi (opsional)..."
-              className="flex-1 border border-purple-950/40 bg-slate-900/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-white focus:outline-none focus:border-purple-500 focus:bg-slate-900 transition-all placeholder:text-slate-500"
+              className="flex-1 border border-slate-200 dark:border-purple-950/40 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 focus:bg-white dark:focus:bg-slate-900 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
           )}
           <button 
@@ -128,31 +128,31 @@ export default function MasterDataPage() {
       </div>
 
       {/* Tabel Data */}
-      <div className="bg-[#121629] border border-purple-950/40 rounded-2xl shadow-lg overflow-hidden">
+      <div className="bg-white dark:bg-[#121629] border border-slate-200 dark:border-purple-950/40 rounded-2xl shadow-sm dark:shadow-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-900/40 border-b border-purple-950/40">
+          <thead className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-purple-950/40">
             <tr>
-              <th className="text-left px-5 py-3.5 font-bold text-slate-400 text-[11px] uppercase tracking-wider">Nama Kategori</th>
-              {tab === "bantuan" && <th className="text-left px-5 py-3.5 font-bold text-slate-400 text-[11px] uppercase tracking-wider">Deskripsi</th>}
-              <th className="text-right px-5 py-3.5 font-bold text-slate-400 text-[11px] uppercase tracking-wider">Aksi</th>
+              <th className="text-left px-5 py-3.5 font-bold text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider">Nama Kategori</th>
+              {tab === "bantuan" && <th className="text-left px-5 py-3.5 font-bold text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider">Deskripsi</th>}
+              <th className="text-right px-5 py-3.5 font-bold text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-purple-950/30">
+          <tbody className="divide-y divide-slate-100 dark:divide-purple-950/30">
             {currentList.length === 0 ? (
               <tr>
-                <td colSpan={3} className="text-center py-10 text-slate-500 text-xs italic">
+                <td colSpan={3} className="text-center py-10 text-slate-400 dark:text-slate-500 text-xs italic">
                   Belum ada data.
                 </td>
               </tr>
             ) : (
               currentList.map((k) => (
-                <tr key={k.id} className="hover:bg-purple-950/10 transition-colors">
-                  <td className="px-5 py-3.5 font-bold text-white text-xs">{k.nama_kategori}</td>
-                  {tab === "bantuan" && <td className="px-5 py-3.5 text-slate-400 text-xs max-w-xs truncate">{k.deskripsi || "-"}</td>}
+                <tr key={k.id} className="hover:bg-slate-50 dark:hover:bg-purple-950/10 transition-colors">
+                  <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white text-xs">{k.nama_kategori}</td>
+                  {tab === "bantuan" && <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400 text-xs max-w-xs truncate">{k.deskripsi || "-"}</td>}
                   <td className="px-5 py-3.5 text-right">
                     <button 
                       onClick={() => handleHapus(k.id)} 
-                      className="text-[11px] font-bold text-slate-400 hover:text-rose-400 transition-colors px-2.5 py-1 rounded-lg border border-purple-900/40 bg-purple-950/30 hover:bg-rose-950/40 hover:border-rose-900/50"
+                      className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors px-2.5 py-1 rounded-lg border border-slate-200 dark:border-purple-900/40 bg-slate-50 dark:bg-purple-950/30 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-900/50"
                     >
                       Hapus
                     </button>
