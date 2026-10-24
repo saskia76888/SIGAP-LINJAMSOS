@@ -4,19 +4,133 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import SuccessModal from "@/app/components/SuccessModal"
 
+// [BARU] Daftar kecamatan Kabupaten Garut (cocokkan dengan daftar resmi)
+const KECAMATAN_GARUT = [
+  "Balubur Limbangan","Banjarwangi","Banyuresmi","Bayongbong","Bungbulang",
+  "Caringin","Cibalong","Cibatu","Cibiuk","Cigedug","Cihurip","Cikajang",
+  "Cikelet","Cilawu","Cisewu","Cisompet","Cisurupan","Garut Kota","Kadungora",
+  "Karangpawitan","Karangtengah","Kersamanah","Leles","Leuwigoong","Malangbong",
+  "Mekarmukti","Pakenjeng","Pamulihan","Pangatikan","Pasirwangi","Peundeuy",
+  "Samarang","Selaawi","Singajaya","Sucinaraja","Sukaresmi","Sukawening",
+  "Talegong","Tarogong Kaler","Tarogong Kidul","Wanaraja",
+]
+
+// [BARU] Class input yang sama dengan field lama, dipakai di field baru
+const inputCls = "w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all"
+
+// [BARU] Tanggal lahir diketik manual dengan format dd/mm/yyyy
+function formatTanggalInput(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 8)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`
+}
+
+// [BARU] Ubah "dd/mm/yyyy" jadi "yyyy-mm-dd" untuk database. Hasil null kalau tanggal tidak valid
+function tanggalKeISO(value: string): string | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  if (!m) return null
+  const day = Number(m[1])
+  const month = Number(m[2])
+  const year = Number(m[3])
+  if (year < 1900 || month < 1 || month > 12 || day < 1) return null
+  const tgl = new Date(year, month - 1, day)
+  if (tgl.getFullYear() !== year || tgl.getMonth() !== month - 1 || tgl.getDate() !== day) return null
+  if (tgl > new Date()) return null
+  return `${m[3]}-${m[2]}-${m[1]}`
+}
+
+const tanggalValid = (value: string) => tanggalKeISO(value) !== null
+
+// Slot upload berkas persyaratan (soft copy: PDF atau gambar hasil scan/foto)
+function BerkasUpload({
+  label,
+  hint,
+  file,
+  preview,
+  inputRef,
+  onSelect,
+}: {
+  label: string
+  hint: string
+  file: File | null
+  preview: string | null
+  inputRef: React.RefObject<HTMLInputElement | null>
+  onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-gray-700 mb-1.5">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="file"
+        ref={inputRef}
+        accept="image/*,.pdf"
+        onChange={onSelect}
+        className="hidden"
+      />
+      <div
+        onClick={() => inputRef.current?.click()}
+        className="border-2 border-dashed border-gray-200 bg-gray-50/20 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 transition-all flex flex-col items-center justify-center gap-1.5"
+      >
+        {preview ? (
+          <img src={preview} alt={`Preview ${label}`} className="h-24 rounded-lg object-cover" />
+        ) : file ? (
+          <>
+            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-xs font-semibold text-gray-700">{file.name}</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-xs font-medium text-gray-700">Klik untuk pilih berkas</span>
+            <span className="text-[9px] text-gray-400">{hint}</span>
+          </>
+        )}
+      </div>
+      {file && (
+        <p className="text-[10px] text-green-600 mt-1.5 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          Berkas terpilih: {file.name}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function AjukanBansosPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dokumenInputRef = useRef<HTMLInputElement>(null)
+  const kkInputRef = useRef<HTMLInputElement>(null)
+  const sktmInputRef = useRef<HTMLInputElement>(null)
+  const assesmentInputRef = useRef<HTMLInputElement>(null)
 
-  const [kategoriList, setKategoriList] = useState<{ id: string; nama_kategori: string }[]>([])
+  // id kategori PBI-JK diambil otomatis dari tabel kategori_bantuan
+  const [pbiId, setPbiId] = useState("")
   const [fotoFile, setFotoFile] = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [dokumenFile, setDokumenFile] = useState<File | null>(null)
   const [dokumenPreview, setDokumenPreview] = useState<string | null>(null)
+
+  // Berkas persyaratan resmi (acuan: layanan POLINDA Garut, Pendaftaran BPJS PBI APBD)
+  const [kkFile, setKkFile] = useState<File | null>(null)
+  const [kkPreview, setKkPreview] = useState<string | null>(null)
+  const [sktmFile, setSktmFile] = useState<File | null>(null)
+  const [sktmPreview, setSktmPreview] = useState<string | null>(null)
+  const [assesmentFile, setAssesmentFile] = useState<File | null>(null)
+  const [assesmentPreview, setAssesmentPreview] = useState<string | null>(null)
+
   const [wilayahUser, setWilayahUser] = useState("")
+  // [BARU] true kalau RT/RW berhasil diambil dari akun, maka field dikunci
+  const [rtRwOtomatis, setRtRwOtomatis] = useState(false)
 
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [noTiketBerhasil, setNoTiketBerhasil] = useState("")
@@ -27,30 +141,37 @@ export default function AjukanBansosPage() {
     alamat: "",
     noKontak: "",
     linkMaps: "",
-    jenisBansos: "",
-    jenisBansosLainnya: "",
     keterangan: "",
     statusKepemilikanRumah: "",
     pekerjaan: "",
     penghasilanBulanan: "",
-    jumlahTanggungan: ""
+    jumlahTanggungan: "",
+    // [BARU] Data kepala keluarga
+    noKk: "",
+    nikKepalaKeluarga: "",
+    namaKepalaKeluarga: "",
+    tempatLahirKk: "",
+    tanggalLahirKk: "",
+    rt: "",
+    rw: "",
+    desa: "",
+    kecamatan: "",
+    // [BARU] Data peserta yang diajukan
+    jenisKepesertaan: "",
+    hubunganKeluarga: "",
+    tempatLahirPeserta: "",
+    tanggalLahirPeserta: "",
   })
 
   useEffect(() => {
     async function loadInitialData() {
-      const { data: kategoriData } = await supabase
+      const { data: pbiData } = await supabase
         .from("kategori_bantuan")
-        .select("id, nama_kategori")
-        .order("nama_kategori")
+        .select("id")
+        .eq("nama_kategori", "PBI-JK")
+        .single()
 
-      if (kategoriData) {
-        const sorted = [...kategoriData].sort((a, b) => {
-          if (a.nama_kategori === "Lainnya") return 1
-          if (b.nama_kategori === "Lainnya") return -1
-          return a.nama_kategori.localeCompare(b.nama_kategori)
-        })
-        setKategoriList(sorted)
-      }
+      if (pbiData?.id) setPbiId(pbiData.id)
 
       const { data: sessionData } = await supabase.auth.getSession()
       const user = sessionData.session?.user
@@ -61,6 +182,40 @@ export default function AjukanBansosPage() {
           .eq("id", user.id)
           .single()
         if (userData?.wilayah) setWilayahUser(userData.wilayah)
+
+        // [BARU] Isi RT/RW (dan desa/kecamatan kalau ada) otomatis dari akun RT/RW
+        let rt = ""
+        let rw = ""
+        let desa = ""
+        let kecamatan = ""
+
+        // Cara 1: kolom rt, rw, desa, kecamatan di tabel users (kalau sudah ada)
+        const { data: detail, error: detailErr } = await supabase
+          .from("users")
+          .select("rt, rw, desa, kecamatan")
+          .eq("id", user.id)
+          .single()
+        if (!detailErr && detail) {
+          const d = detail as any
+          rt = String(d.rt ?? "").replace(/\D/g, "")
+          rw = String(d.rw ?? "").replace(/\D/g, "")
+          desa = d.desa ?? ""
+          kecamatan = d.kecamatan ?? ""
+        }
+
+        // Cara 2 (cadangan): baca dari teks wilayah, mis. "RT 02 RW 05, Desa ..."
+        const teks: string = userData?.wilayah ?? ""
+        if (!rt) rt = /RT\.?\s*0*(\d+)/i.exec(teks)?.[1] ?? ""
+        if (!rw) rw = /RW\.?\s*0*(\d+)/i.exec(teks)?.[1] ?? ""
+
+        if (rt && rw) setRtRwOtomatis(true)
+        setFormData((prev) => ({
+          ...prev,
+          rt: rt || prev.rt,
+          rw: rw || prev.rw,
+          desa: desa || prev.desa,
+          kecamatan: kecamatan || prev.kecamatan,
+        }))
       }
     }
     loadInitialData()
@@ -68,6 +223,16 @@ export default function AjukanBansosPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  // [BARU] Handler khusus input angka saja (No. KK, NIK, RT, RW)
+  const handleAngka = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value.replace(/\D/g, "") })
+  }
+
+  // [BARU] Handler tanggal lahir: otomatis menambah "/" saat mengetik
+  const handleTanggal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: formatTanggalInput(e.target.value) })
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -90,11 +255,25 @@ export default function AjukanBansosPage() {
     }
   }
 
+  // Handler umum untuk berkas persyaratan (KK, SKTM, Assessment), maksimal 5MB
+  function handleBerkasSelect(
+    e: React.ChangeEvent<HTMLInputElement>,
+    setFile: (f: File | null) => void,
+    setPreview: (p: string | null) => void
+  ) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ukuran berkas maksimal 5MB")
+      e.target.value = ""
+      return
+    }
+    setFile(file)
+    setPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null)
+  }
+
   const nextStep = () => setStep((prev) => prev + 1)
   const prevStep = () => setStep((prev) => prev - 1)
-
-  const namaKategoriTerpilih = kategoriList.find((k) => k.id === formData.jenisBansos)?.nama_kategori || "-"
-  const isLainnya = namaKategoriTerpilih === "Lainnya"
 
   async function uploadFile(file: File, folder: string) {
     const fileExt = file.name.split(".").pop()
@@ -126,6 +305,16 @@ export default function AjukanBansosPage() {
       return
     }
 
+    if (!kkFile || !sktmFile || !assesmentFile) {
+      alert("KK, Surat Keterangan Tidak Mampu, dan Formulir Assessment wajib diunggah")
+      return
+    }
+
+    if (!pbiId) {
+      alert("Kategori PBI-JK tidak ditemukan. Muat ulang halaman atau hubungi admin.")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -144,11 +333,11 @@ export default function AjukanBansosPage() {
       let dokumenUrl: string | null = null
       if (dokumenFile) dokumenUrl = await uploadFile(dokumenFile, "bansos-dokumen")
 
-      const noTiket = "PGD-" + Date.now()
+      const kkUrl = await uploadFile(kkFile, "bansos-kk")
+      const sktmUrl = await uploadFile(sktmFile, "bansos-sktm")
+      const assesmentUrl = await uploadFile(assesmentFile, "bansos-assesment")
 
-      const kondisiEkonomiFinal = isLainnya
-        ? `[Jenis bantuan: ${formData.jenisBansosLainnya}] ${formData.keterangan}`
-        : formData.keterangan
+      const noTiket = "PGD-" + Date.now()
 
       const { error: insertError } = await supabase.from("usulan_bansos").insert({
         no_tiket: noTiket,
@@ -158,15 +347,32 @@ export default function AjukanBansosPage() {
         alamat: `${formData.alamat} (${wilayahUser})`,
         no_kontak: formData.noKontak,
         link_maps: formData.linkMaps || null,
-        kondisi_ekonomi: kondisiEkonomiFinal,
-        kategori_bantuan_id: formData.jenisBansos,
+        kondisi_ekonomi: formData.keterangan,
+        kategori_bantuan_id: pbiId,
         foto_url: fotoUrl,
         dokumen_pendukung_url: dokumenUrl,
+        dokumen_kk_url: kkUrl,
+        dokumen_sktm_url: sktmUrl,
+        dokumen_assesment_url: assesmentUrl,
         status_kepemilikan_rumah: formData.statusKepemilikanRumah,
         pekerjaan: formData.pekerjaan,
         penghasilan_bulanan: formData.penghasilanBulanan,
         jumlah_tanggungan: formData.jumlahTanggungan ? parseInt(formData.jumlahTanggungan) : null,
-        status: "baru"
+        status: "baru",
+        // [BARU] Kolom tambahan sesuai form POLINDA
+        jenis_kepesertaan: formData.jenisKepesertaan,
+        hubungan_keluarga: formData.hubunganKeluarga,
+        no_kk: formData.noKk,
+        nik_kepala_keluarga: formData.nikKepalaKeluarga,
+        nama_kepala_keluarga: formData.namaKepalaKeluarga,
+        tempat_lahir_kk: formData.tempatLahirKk,
+        tanggal_lahir_kk: tanggalKeISO(formData.tanggalLahirKk),
+        rt: formData.rt,
+        rw: formData.rw,
+        desa: formData.desa,
+        kecamatan: formData.kecamatan,
+        tempat_lahir_peserta: formData.tempatLahirPeserta,
+        tanggal_lahir_peserta: tanggalKeISO(formData.tanggalLahirPeserta),
       })
 
       if (insertError) throw insertError
@@ -179,6 +385,13 @@ export default function AjukanBansosPage() {
       setLoading(false)
     }
   }
+
+  // Daftar berkas persyaratan untuk ringkasan di langkah 3
+  const berkasWajib = [
+    { label: "KK (NIK valid)", file: kkFile, preview: kkPreview },
+    { label: "Surat Keterangan Tidak Mampu", file: sktmFile, preview: sktmPreview },
+    { label: "Formulir Assessment", file: assesmentFile, preview: assesmentPreview },
+  ]
 
   return (
     <main className="min-h-screen bg-[#f8fafc] font-sans antialiased text-gray-950 pb-12">
@@ -227,30 +440,104 @@ export default function AjukanBansosPage() {
             {step === 1 && (
               <div className="space-y-5">
                 <div>
-                  <h2 className="text-xl font-bold text-blue-950 tracking-tight">Data Penerima Manfaat</h2>
-                  <p className="text-xs text-gray-400 mt-1">Pastikan data yang Anda masukkan sesuai dengan Kartu Tanda Penduduk (KTP) yang berlaku.</p>
+                  <h2 className="text-xl font-bold text-blue-950 tracking-tight">Data Kepala Keluarga</h2>
+                  <p className="text-xs text-gray-400 mt-1">Pastikan data yang Anda masukkan sesuai dengan Kartu Keluarga (KK) dan KTP yang berlaku.</p>
                 </div>
 
                 <div className="space-y-4">
+                  {/* [BARU] Data kepala keluarga (menggantikan Nama & NIK yang lama, dua field itu pindah ke Langkah 2 sebagai data peserta) */}
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Lengkap</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Nomor KK <span className="text-red-500">*</span></label>
                     <input
-                      type="text" name="namaWarga" value={formData.namaWarga} onChange={handleChange}
-                      placeholder="Masukkan nama sesuai KTP"
-                      className="w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all"
+                      type="text" name="noKk" maxLength={16} inputMode="numeric"
+                      value={formData.noKk} onChange={handleAngka}
+                      placeholder="16 digit Nomor KK"
+                      className={inputCls}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Nomor Induk Kependudukan (NIK)</label>
-                    <div className="relative">
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">NIK Kepala Keluarga <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" name="nikKepalaKeluarga" maxLength={16} inputMode="numeric"
+                      value={formData.nikKepalaKeluarga} onChange={handleAngka}
+                      placeholder="16 digit NIK"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Kepala Keluarga <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" name="namaKepalaKeluarga"
+                      value={formData.namaKepalaKeluarga} onChange={handleChange}
+                      placeholder="Sesuai KK"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Tempat Lahir <span className="text-red-500">*</span></label>
                       <input
-                        type="text" name="nik" maxLength={16} value={formData.nik} onChange={handleChange}
-                        placeholder="16 digit NIK"
-                        className="w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all pr-9"
+                        type="text" name="tempatLahirKk"
+                        value={formData.tempatLahirKk} onChange={handleChange}
+                        className={inputCls}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-serif text-xs italic border border-gray-300 w-4 h-4 rounded-full inline-flex items-center justify-center cursor-help" title="Harus 16 Angka KTP">i</span>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Tanggal Lahir <span className="text-red-500">*</span></label>
+                      <input
+                        type="text" name="tanggalLahirKk" inputMode="numeric" maxLength={10}
+                        value={formData.tanggalLahirKk} onChange={handleTanggal}
+                        placeholder="dd/mm/yyyy"
+                        className={inputCls}
+                      />
+                      {formData.tanggalLahirKk.length === 10 && !tanggalValid(formData.tanggalLahirKk) && (
+                        <p className="text-[10px] text-red-500 mt-1">Tanggal tidak valid. Contoh: 17/08/1990</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">RT <span className="text-red-500">*</span></label>
+                      <input
+                        type="text" name="rt" maxLength={3} inputMode="numeric"
+                        value={formData.rt} onChange={handleAngka}
+                        readOnly={rtRwOtomatis}
+                        className={`${inputCls} ${rtRwOtomatis ? "bg-gray-100 text-gray-600 cursor-not-allowed" : ""}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">RW <span className="text-red-500">*</span></label>
+                      <input
+                        type="text" name="rw" maxLength={3} inputMode="numeric"
+                        value={formData.rw} onChange={handleAngka}
+                        readOnly={rtRwOtomatis}
+                        className={`${inputCls} ${rtRwOtomatis ? "bg-gray-100 text-gray-600 cursor-not-allowed" : ""}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Kecamatan <span className="text-red-500">*</span></label>
+                    <select name="kecamatan" value={formData.kecamatan} onChange={handleChange} className={inputCls}>
+                      <option value="">Pilih kecamatan</option>
+                      {KECAMATAN_GARUT.map((k) => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Desa/Kelurahan <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" name="desa"
+                      value={formData.desa} onChange={handleChange}
+                      placeholder="Nama desa/kelurahan"
+                      className={inputCls}
+                    />
                   </div>
 
                   <div>
@@ -298,7 +585,19 @@ export default function AjukanBansosPage() {
 
                 <button
                   type="button" onClick={nextStep}
-                  disabled={!formData.namaWarga || !formData.nik || !formData.noKontak || formData.alamat.length < 15}
+                  disabled={
+                    formData.noKk.length !== 16 ||
+                    formData.nikKepalaKeluarga.length !== 16 ||
+                    !formData.namaKepalaKeluarga ||
+                    !formData.tempatLahirKk ||
+                    !tanggalValid(formData.tanggalLahirKk) ||
+                    !formData.rt ||
+                    !formData.rw ||
+                    !formData.kecamatan ||
+                    !formData.desa ||
+                    !formData.noKontak ||
+                    formData.alamat.length < 15
+                  }
                   className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 disabled:text-gray-500 text-white text-xs font-bold rounded-xl py-3 flex items-center justify-center gap-1.5 shadow-sm transition-all"
                 >
                   Lanjut 
@@ -311,32 +610,81 @@ export default function AjukanBansosPage() {
               <div className="space-y-5">
                 <div>
                   <h2 className="text-xl font-bold text-blue-950 tracking-tight">Detail Bantuan & Kondisi</h2>
-                  <p className="text-xs text-gray-400 mt-1">Lengkapi informasi bantuan yang diajukan serta indikator kondisi ekonomi untuk proses verifikasi.</p>
+                  <p className="text-xs text-gray-400 mt-1">Lengkapi indikator kondisi ekonomi dan berkas persyaratan untuk proses verifikasi pendaftaran BPJS PBI.</p>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Bantuan <span className="text-red-500">*</span></label>
-                    <select name="jenisBansos" value={formData.jenisBansos} onChange={handleChange} className="w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all">
-                      <option value="">Pilih Program Bantuan</option>
-                      {kategoriList.map((k) => (
-                        <option key={k.id} value={k.id}>{k.nama_kategori}</option>
-                      ))}
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Program Bantuan</label>
+                    <div className="w-full border border-gray-200 bg-gray-100 rounded-xl px-3.5 py-2.5 text-sm text-gray-600">
+                      BPJS PBI (Penerima Bantuan Iuran Jaminan Kesehatan)
+                    </div>
+                  </div>
+
+                  {/* [BARU] Jenis kepesertaan & data peserta yang diajukan */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Kepesertaan <span className="text-red-500">*</span></label>
+                    <select name="jenisKepesertaan" value={formData.jenisKepesertaan} onChange={handleChange} className={inputCls}>
+                      <option value="">Pilih jenis</option>
+                      <option value="Peserta Baru">Peserta Baru</option>
+                      <option value="Reaktivasi">Reaktivasi</option>
+                      <option value="Peralihan">Peralihan</option>
                     </select>
                   </div>
 
-                  {isLainnya && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Hubungan dengan Kepala Keluarga <span className="text-red-500">*</span></label>
+                    <select name="hubunganKeluarga" value={formData.hubunganKeluarga} onChange={handleChange} className={inputCls}>
+                      <option value="">Pilih hubungan</option>
+                      <option value="Kepala Keluarga">Kepala Keluarga</option>
+                      <option value="Istri/Suami">Istri/Suami</option>
+                      <option value="Anak">Anak</option>
+                      <option value="Orang Tua">Orang Tua</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Peserta yang Diajukan <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" name="namaWarga" value={formData.namaWarga} onChange={handleChange}
+                      placeholder="Nama sesuai KK/KTP"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">NIK Peserta <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" name="nik" maxLength={16} inputMode="numeric"
+                      value={formData.nik} onChange={handleAngka}
+                      placeholder="16 digit NIK"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                        Sebutkan Jenis Bantuan <span className="text-red-500">*</span>
-                      </label>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Tempat Lahir <span className="text-red-500">*</span></label>
                       <input
-                        type="text" name="jenisBansosLainnya" value={formData.jenisBansosLainnya} onChange={handleChange}
-                        placeholder="Contoh: Bantuan Yatim Piatu Daerah"
-                        className="w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all"
+                        type="text" name="tempatLahirPeserta"
+                        value={formData.tempatLahirPeserta} onChange={handleChange}
+                        className={inputCls}
                       />
                     </div>
-                  )}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Tanggal Lahir <span className="text-red-500">*</span></label>
+                      <input
+                        type="text" name="tanggalLahirPeserta" inputMode="numeric" maxLength={10}
+                        value={formData.tanggalLahirPeserta} onChange={handleTanggal}
+                        placeholder="dd/mm/yyyy"
+                        className={inputCls}
+                      />
+                      {formData.tanggalLahirPeserta.length === 10 && !tanggalValid(formData.tanggalLahirPeserta) && (
+                        <p className="text-[10px] text-red-500 mt-1">Tanggal tidak valid. Contoh: 17/08/2015</p>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -349,7 +697,7 @@ export default function AjukanBansosPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Jumlah Tanggungan <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Jumlah Tanggungan Kepala Keluarga <span className="text-red-500">*</span></label>
                       <input
                         type="number" name="jumlahTanggungan" value={formData.jumlahTanggungan} onChange={handleChange}
                         min="0"
@@ -357,6 +705,7 @@ export default function AjukanBansosPage() {
                         placeholder="Contoh: 3"
                         className="w-full border border-gray-200 bg-gray-50/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-950 focus:bg-white transition-all"
                       />
+                      <p className="text-[10px] text-gray-400 mt-1">Orang yang dibiayai kepala keluarga, tidak termasuk kepala keluarga. Sama untuk semua anggota satu KK.</p>
                     </div>
                   </div>
 
@@ -393,8 +742,40 @@ export default function AjukanBansosPage() {
                     />
                   </div>
 
+                  <div className="pt-1">
+                    <h3 className="text-xs font-bold text-blue-950">Berkas Persyaratan</h3>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Unggah dalam bentuk soft copy (PDF atau gambar hasil scan). Pastikan berkas jelas, tidak buram, dan tidak terpotong. Maksimal 5MB per berkas.</p>
+                  </div>
+
+                  <BerkasUpload
+                    label="Kartu Keluarga (KK) dengan NIK valid"
+                    hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                    file={kkFile}
+                    preview={kkPreview}
+                    inputRef={kkInputRef}
+                    onSelect={(e) => handleBerkasSelect(e, setKkFile, setKkPreview)}
+                  />
+
+                  <BerkasUpload
+                    label="Surat Keterangan Tidak Mampu (dari Desa)"
+                    hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                    file={sktmFile}
+                    preview={sktmPreview}
+                    inputRef={sktmInputRef}
+                    onSelect={(e) => handleBerkasSelect(e, setSktmFile, setSktmPreview)}
+                  />
+
+                  <BerkasUpload
+                    label="Dokumen Formulir Assessment"
+                    hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                    file={assesmentFile}
+                    preview={assesmentPreview}
+                    inputRef={assesmentInputRef}
+                    onSelect={(e) => handleBerkasSelect(e, setAssesmentFile, setAssesmentPreview)}
+                  />
+
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Foto Kondisi Rumah/Keluarga <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Foto Rumah Tampak Depan <span className="text-red-500">*</span></label>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -428,7 +809,7 @@ export default function AjukanBansosPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Dokumen Pendukung (KTP/KK/SKTM)</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Dokumen Lainnya (opsional, misal KTP)</label>
                     <input
                       type="file"
                       ref={dokumenInputRef}
@@ -474,7 +855,15 @@ export default function AjukanBansosPage() {
                   </button>
                   <button 
                     type="button" onClick={nextStep}
-                    disabled={!formData.jenisBansos || formData.keterangan.length < 30 || (isLainnya && !formData.jenisBansosLainnya) || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || !fotoFile}
+                    disabled={
+                      !formData.jenisKepesertaan ||
+                      !formData.hubunganKeluarga ||
+                      !formData.namaWarga ||
+                      formData.nik.length !== 16 ||
+                      !formData.tempatLahirPeserta ||
+                      !tanggalValid(formData.tanggalLahirPeserta) ||
+                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || !fotoFile || !kkFile || !sktmFile || !assesmentFile
+                    }
                     className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 disabled:text-gray-500 text-white text-xs font-bold rounded-xl py-3 transition-all flex items-center justify-center gap-1"
                   >
                     Lanjut →
@@ -491,12 +880,29 @@ export default function AjukanBansosPage() {
                 </div>
 
                 <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3 text-xs">
+                  {/* [BARU] Ringkasan data kepala keluarga & jenis kepesertaan */}
+                  {[
+                    ["No. KK", formData.noKk],
+                    ["Kepala Keluarga", `${formData.namaKepalaKeluarga} (${formData.nikKepalaKeluarga})`],
+                    ["TTL Kepala Keluarga", `${formData.tempatLahirKk}, ${formData.tanggalLahirKk}`],
+                    ["RT/RW", `${formData.rt}/${formData.rw}`],
+                    ["Desa, Kecamatan", `${formData.desa}, ${formData.kecamatan}`],
+                    ["Jenis Kepesertaan", formData.jenisKepesertaan],
+                    ["Hubungan dengan KK", formData.hubunganKeluarga],
+                    ["TTL Peserta", `${formData.tempatLahirPeserta}, ${formData.tanggalLahirPeserta}`],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex justify-between border-b border-gray-200/60 pb-1.5">
+                      <span className="text-gray-400">{k}</span>
+                      <span className="font-semibold text-gray-900 text-right">{v}</span>
+                    </div>
+                  ))}
+
                   <div className="flex justify-between border-b border-gray-200/60 pb-1.5">
-                    <span className="text-gray-400">Nama Warga</span>
+                    <span className="text-gray-400">Nama Peserta</span>
                     <span className="font-semibold text-gray-900">{formData.namaWarga}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-200/60 pb-1.5">
-                    <span className="text-gray-400">NIK KTP</span>
+                    <span className="text-gray-400">NIK Peserta</span>
                     <span className="font-mono font-semibold text-gray-900">{formData.nik}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-200/60 pb-1.5">
@@ -517,9 +923,7 @@ export default function AjukanBansosPage() {
                   )}
                   <div className="flex justify-between border-b border-gray-200/60 pb-1.5">
                     <span className="text-gray-400">Jenis Program</span>
-                    <span className="font-bold text-blue-600 uppercase">
-                      {isLainnya ? formData.jenisBansosLainnya : namaKategoriTerpilih}
-                    </span>
+                    <span className="font-bold text-blue-600 uppercase">BPJS PBI</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-200/60 pb-1.5">
                     <span className="text-gray-400">Kepemilikan Rumah</span>
@@ -540,6 +944,19 @@ export default function AjukanBansosPage() {
 
                   <div className="flex flex-col gap-1.5 pt-1">
                     <span className="text-gray-400">Status Lampiran</span>
+
+                    {berkasWajib.map((b) => (
+                      <div key={b.label} className="flex items-center gap-2">
+                        {b.preview && (
+                          <img src={b.preview} alt={b.label} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                        )}
+                        <span className="text-green-600 font-semibold flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          {b.label}: Terunggah
+                        </span>
+                      </div>
+                    ))}
+
                     <div className="flex items-center gap-2">
                       {fotoPreview && (
                         <img src={fotoPreview} alt="Foto rumah" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
@@ -557,10 +974,10 @@ export default function AjukanBansosPage() {
                         {dokumenFile ? (
                           <>
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                            Dokumen pendukung: Terunggah
+                            Dokumen lainnya: Terunggah
                           </>
                         ) : (
-                          "Dokumen pendukung: Tidak diunggah"
+                          "Dokumen lainnya: Tidak diunggah"
                         )}
                       </span>
                     </div>
@@ -602,11 +1019,15 @@ export default function AjukanBansosPage() {
               </div>
               <div className="flex gap-2.5 items-start">
                 <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">02</span>
-                <p>Foto rumah harus mencakup tampak depan secara jelas dan area ruang tamu utama.</p>
+                <p>Siapkan berkas persyaratan dalam bentuk soft copy: KK dengan NIK valid, Surat Keterangan Tidak Mampu dari Desa, dan Formulir Assessment.</p>
               </div>
               <div className="flex gap-2.5 items-start">
                 <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">03</span>
-                <p>Data yang diberikan akan diverifikasi langsung oleh petugas lapangan dalam waktu 3-5 hari kerja.</p>
+                <p>Foto rumah harus mencakup tampak depan secara jelas dan area ruang tamu utama.</p>
+              </div>
+              <div className="flex gap-2.5 items-start">
+                <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">04</span>
+                <p>Berkas yang tidak lengkap atau tidak benar akan dikembalikan untuk dilengkapi. Berkas yang lengkap dan benar akan diproses oleh petugas lapangan dalam waktu 3-5 hari kerja.</p>
               </div>
             </div>
           </div>
