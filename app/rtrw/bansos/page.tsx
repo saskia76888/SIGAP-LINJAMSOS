@@ -1,6 +1,6 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useState, useEffect, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import SuccessModal from "@/app/components/SuccessModal"
 
@@ -42,6 +42,13 @@ function tanggalKeISO(value: string): string | null {
 
 const tanggalValid = (value: string) => tanggalKeISO(value) !== null
 
+// [BARU] Ubah "yyyy-mm-dd" dari database jadi "dd/mm/yyyy" untuk ditampilkan di form
+const isoKeTanggal = (v?: string | null) => {
+  if (!v) return ""
+  const [y, m, d] = v.slice(0, 10).split("-")
+  return `${d}/${m}/${y}`
+}
+
 // Slot upload berkas persyaratan (soft copy: PDF atau gambar hasil scan/foto)
 function BerkasUpload({
   label,
@@ -50,6 +57,7 @@ function BerkasUpload({
   preview,
   inputRef,
   onSelect,
+  urlLama,
 }: {
   label: string
   hint: string
@@ -57,6 +65,7 @@ function BerkasUpload({
   preview: string | null
   inputRef: React.RefObject<HTMLInputElement | null>
   onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  urlLama?: string | null
 }) {
   return (
     <div>
@@ -83,6 +92,12 @@ function BerkasUpload({
             </svg>
             <span className="text-xs font-semibold text-gray-700">{file.name}</span>
           </>
+        ) : urlLama ? (
+          <>
+            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            <span className="text-xs font-semibold text-green-700">Berkas sudah diunggah</span>
+            <span className="text-[9px] text-gray-400">Klik untuk mengganti dengan berkas baru</span>
+          </>
         ) : (
           <>
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -103,8 +118,21 @@ function BerkasUpload({
   )
 }
 
-export default function AjukanBansosPage() {
+function AjukanBansosContent() {
   const router = useRouter()
+  // [BARU] Mode perbaikan usulan: dibuka dari /rtrw/bansos?edit=ID
+  const searchParams = useSearchParams()
+  const editId = searchParams.get("edit")
+  const isEdit = !!editId
+  const [noTiketEdit, setNoTiketEdit] = useState("")
+  const [catatanPetugas, setCatatanPetugas] = useState("")
+  const [berkasLama, setBerkasLama] = useState<{
+    foto: string | null
+    dokumen: string | null
+    kk: string | null
+    sktm: string | null
+    assesment: string | null
+  }>({ foto: null, dokumen: null, kk: null, sktm: null, assesment: null })
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -216,10 +244,75 @@ export default function AjukanBansosPage() {
           desa: desa || prev.desa,
           kecamatan: kecamatan || prev.kecamatan,
         }))
+
+        // [BARU] Mode edit: isi form dari usulan yang mau diperbaiki
+        if (editId) {
+          const { data: row, error: rowErr } = await supabase
+            .from("usulan_bansos")
+            .select("*")
+            .eq("id", editId)
+            .eq("rt_rw_id", user.id)
+            .is("deleted_at", null)
+            .maybeSingle()
+
+          if (rowErr || !row) {
+            alert("Usulan tidak ditemukan atau bukan milik Anda.")
+            router.push("/rtrw/dashboard")
+            return
+          }
+          if (!["baru", "ditolak"].includes(String(row.status || "").toLowerCase())) {
+            alert("Usulan yang sudah diproses petugas tidak dapat diubah.")
+            router.push("/rtrw/dashboard")
+            return
+          }
+
+          // Alamat tersimpan dengan tambahan " (wilayah)" di belakang, buang saat ditampilkan lagi
+          const akhiran = userData?.wilayah ? ` (${userData.wilayah})` : ""
+          const alamatAsli =
+            akhiran && String(row.alamat || "").endsWith(akhiran)
+              ? String(row.alamat).slice(0, -akhiran.length)
+              : row.alamat || ""
+
+          setNoTiketEdit(row.no_tiket)
+          setCatatanPetugas(row.catatan_petugas || "")
+          setBerkasLama({
+            foto: row.foto_url || null,
+            dokumen: row.dokumen_pendukung_url || null,
+            kk: row.dokumen_kk_url || null,
+            sktm: row.dokumen_sktm_url || null,
+            assesment: row.dokumen_assesment_url || null,
+          })
+          setFormData((prev) => ({
+            ...prev,
+            namaWarga: row.nama_warga || "",
+            nik: row.nik || "",
+            alamat: alamatAsli,
+            noKontak: row.no_kontak || "",
+            linkMaps: row.link_maps || "",
+            keterangan: row.kondisi_ekonomi || "",
+            statusKepemilikanRumah: row.status_kepemilikan_rumah || "",
+            pekerjaan: row.pekerjaan || "",
+            penghasilanBulanan: row.penghasilan_bulanan || "",
+            jumlahTanggungan: row.jumlah_tanggungan != null ? String(row.jumlah_tanggungan) : "",
+            noKk: row.no_kk || "",
+            nikKepalaKeluarga: row.nik_kepala_keluarga || "",
+            namaKepalaKeluarga: row.nama_kepala_keluarga || "",
+            tempatLahirKk: row.tempat_lahir_kk || "",
+            tanggalLahirKk: isoKeTanggal(row.tanggal_lahir_kk),
+            rt: row.rt || prev.rt,
+            rw: row.rw || prev.rw,
+            desa: row.desa || prev.desa,
+            kecamatan: row.kecamatan || prev.kecamatan,
+            jenisKepesertaan: row.jenis_kepesertaan || "",
+            hubunganKeluarga: row.hubungan_keluarga || "",
+            tempatLahirPeserta: row.tempat_lahir_peserta || "",
+            tanggalLahirPeserta: isoKeTanggal(row.tanggal_lahir_peserta),
+          }))
+        }
       }
     }
     loadInitialData()
-  }, [])
+  }, [editId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -300,12 +393,12 @@ export default function AjukanBansosPage() {
       return
     }
 
-    if (!fotoFile) {
+    if (!fotoFile && !berkasLama.foto) {
       alert("Foto kondisi rumah wajib diunggah")
       return
     }
 
-    if (!kkFile || !sktmFile || !assesmentFile) {
+    if ((!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment)) {
       alert("KK, Surat Keterangan Tidak Mampu, dan Formulir Assessment wajib diunggah")
       return
     }
@@ -327,19 +420,19 @@ export default function AjukanBansosPage() {
         return
       }
 
-      let fotoUrl: string | null = null
+      let fotoUrl: string | null = berkasLama.foto
       if (fotoFile) fotoUrl = await uploadFile(fotoFile, "bansos")
 
-      let dokumenUrl: string | null = null
+      let dokumenUrl: string | null = berkasLama.dokumen
       if (dokumenFile) dokumenUrl = await uploadFile(dokumenFile, "bansos-dokumen")
 
-      const kkUrl = await uploadFile(kkFile, "bansos-kk")
-      const sktmUrl = await uploadFile(sktmFile, "bansos-sktm")
-      const assesmentUrl = await uploadFile(assesmentFile, "bansos-assesment")
+      const kkUrl = kkFile ? await uploadFile(kkFile, "bansos-kk") : berkasLama.kk
+      const sktmUrl = sktmFile ? await uploadFile(sktmFile, "bansos-sktm") : berkasLama.sktm
+      const assesmentUrl = assesmentFile ? await uploadFile(assesmentFile, "bansos-assesment") : berkasLama.assesment
 
-      const noTiket = "PGD-" + Date.now()
+      const noTiket = isEdit ? noTiketEdit : "PGD-" + Date.now()
 
-      const { error: insertError } = await supabase.from("usulan_bansos").insert({
+      const payload = {
         no_tiket: noTiket,
         rt_rw_id: user.id,
         nama_warga: formData.namaWarga,
@@ -359,6 +452,8 @@ export default function AjukanBansosPage() {
         penghasilan_bulanan: formData.penghasilanBulanan,
         jumlah_tanggungan: formData.jumlahTanggungan ? parseInt(formData.jumlahTanggungan) : null,
         status: "baru",
+        // Saat perbaikan: catatan petugas dibersihkan, status kembali "baru"
+        ...(editId ? { catatan_petugas: null } : {}),
         // [BARU] Kolom tambahan sesuai form POLINDA
         jenis_kepesertaan: formData.jenisKepesertaan,
         hubungan_keluarga: formData.hubunganKeluarga,
@@ -373,7 +468,12 @@ export default function AjukanBansosPage() {
         kecamatan: formData.kecamatan,
         tempat_lahir_peserta: formData.tempatLahirPeserta,
         tanggal_lahir_peserta: tanggalKeISO(formData.tanggalLahirPeserta),
-      })
+      }
+
+      // [BARU] Mode perbaikan = UPDATE usulan milik sendiri, selain itu = INSERT usulan baru
+      const { error: insertError } = editId
+        ? await supabase.from("usulan_bansos").update(payload).eq("id", editId).eq("rt_rw_id", user.id)
+        : await supabase.from("usulan_bansos").insert(payload)
 
       if (insertError) throw insertError
 
@@ -442,6 +542,13 @@ export default function AjukanBansosPage() {
                 <div>
                   <h2 className="text-xl font-bold text-blue-950 tracking-tight">Data Kepala Keluarga</h2>
                   <p className="text-xs text-gray-400 mt-1">Pastikan data yang Anda masukkan sesuai dengan Kartu Keluarga (KK) dan KTP yang berlaku.</p>
+                  {isEdit && (
+                    <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1">
+                      <p className="text-[11px] font-bold text-amber-800">Mode perbaikan usulan</p>
+                      <p className="text-[11px] text-amber-700 leading-relaxed">Ubah data yang perlu diperbaiki lalu kirim ulang. Status usulan akan kembali menjadi "baru".</p>
+                      {catatanPetugas && <p className="text-[11px] text-rose-700 font-medium">Catatan petugas: {catatanPetugas}</p>}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -753,6 +860,7 @@ export default function AjukanBansosPage() {
                     file={kkFile}
                     preview={kkPreview}
                     inputRef={kkInputRef}
+                    urlLama={berkasLama.kk}
                     onSelect={(e) => handleBerkasSelect(e, setKkFile, setKkPreview)}
                   />
 
@@ -762,6 +870,7 @@ export default function AjukanBansosPage() {
                     file={sktmFile}
                     preview={sktmPreview}
                     inputRef={sktmInputRef}
+                    urlLama={berkasLama.sktm}
                     onSelect={(e) => handleBerkasSelect(e, setSktmFile, setSktmPreview)}
                   />
 
@@ -771,6 +880,7 @@ export default function AjukanBansosPage() {
                     file={assesmentFile}
                     preview={assesmentPreview}
                     inputRef={assesmentInputRef}
+                    urlLama={berkasLama.assesment}
                     onSelect={(e) => handleBerkasSelect(e, setAssesmentFile, setAssesmentPreview)}
                   />
 
@@ -789,6 +899,8 @@ export default function AjukanBansosPage() {
                     >
                       {fotoPreview ? (
                         <img src={fotoPreview} alt="Preview" className="h-24 rounded-lg object-cover" />
+                      ) : berkasLama.foto ? (
+                        <img src={berkasLama.foto} alt="Foto rumah" className="h-24 rounded-lg object-cover" />
                       ) : (
                         <>
                           <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -862,7 +974,7 @@ export default function AjukanBansosPage() {
                       formData.nik.length !== 16 ||
                       !formData.tempatLahirPeserta ||
                       !tanggalValid(formData.tanggalLahirPeserta) ||
-                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || !fotoFile || !kkFile || !sktmFile || !assesmentFile
+                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || (!fotoFile && !berkasLama.foto) || (!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment)
                     }
                     className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 disabled:text-gray-500 text-white text-xs font-bold rounded-xl py-3 transition-all flex items-center justify-center gap-1"
                   >
@@ -997,7 +1109,7 @@ export default function AjukanBansosPage() {
                     type="button" onClick={handleSubmit} disabled={loading}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-xl py-3 shadow-md shadow-blue-600/10 transition-all flex items-center justify-center"
                   >
-                    {loading ? "Mengirim Data..." : "Kirim Usulan Resmi"}
+                    {loading ? "Mengirim Data..." : isEdit ? "Kirim Perbaikan" : "Kirim Usulan Resmi"}
                   </button>
                 </div>
               </div>
@@ -1061,10 +1173,19 @@ export default function AjukanBansosPage() {
 
       <SuccessModal
         show={showSuccessModal}
-        title="Pengajuan Berhasil Dikirim"
+        title={isEdit ? "Perbaikan Berhasil Dikirim" : "Pengajuan Berhasil Dikirim"}
         noTiket={noTiketBerhasil}
         onClose={() => router.push("/rtrw/dashboard")}
       />
     </main>
+  )
+}
+
+// useSearchParams harus dibungkus Suspense supaya aman saat build produksi
+export default function AjukanBansosPage() {
+  return (
+    <Suspense fallback={null}>
+      <AjukanBansosContent />
+    </Suspense>
   )
 }
