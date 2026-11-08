@@ -95,6 +95,16 @@ async function buatPenerimaDariUsulan(raw: any, userId: string) {
       rw: raw.rw || null,
       kelurahan: raw.desa || null,
       kecamatan: raw.kecamatan || null,
+      // [BARU] Data lengkap ikut disalin supaya Data Peserta PBI tidak kosong
+      nik_kepala_keluarga: nikKepalaKeluarga(raw),
+      hubungan_keluarga: p.hubungan || null,
+      tempat_lahir: p.tempat_lahir || null,
+      tanggal_lahir: p.tanggal_lahir || null,
+      pekerjaan: raw.pekerjaan || null,
+      penghasilan_bulanan: raw.penghasilan_bulanan || null,
+      status_kepemilikan_rumah: raw.status_kepemilikan_rumah || null,
+      jumlah_tanggungan: raw.jumlah_tanggungan ?? null,
+      no_kontak: raw.no_kontak || null,
       kategori_bantuan_id: raw.kategori_bantuan_id,
       status_verifikasi: "terverifikasi",
       status_kepesertaan: "aktif",
@@ -115,7 +125,7 @@ type LaporanItem = {
   no_tiket: string
   judul: string
   created_at: string
-  jenis: "bansos" | "bencana"
+  jenis: "bansos" | "bencana" | "nonaktif" // [BARU] "nonaktif" = usulan penonaktifan peserta
   raw: any
 }
 
@@ -149,7 +159,7 @@ export default function ApprovalPage() {
 
   async function loadData() {
     setLoading(true)
-    const [bansosRes, bencanaRes] = await Promise.all([
+    const [bansosRes, bencanaRes, nonaktifRes] = await Promise.all([
       supabase
         .from("usulan_bansos")
         .select("*, kategori_bantuan(nama_kategori), users:rt_rw_id(nama, wilayah)")
@@ -158,6 +168,12 @@ export default function ApprovalPage() {
         .from("laporan_bencana")
         .select("*, kategori_bencana(nama_kategori), users:rt_rw_id(nama, wilayah)")
         .eq("status", "diverifikasi"),
+      // [BARU] Peserta yang diusulkan petugas untuk dinonaktifkan
+      supabase
+        .from("penerima_bansos")
+        .select("*")
+        .eq("status_kepesertaan", "usulan_nonaktif")
+        .is("deleted_at", null),
     ])
 
     const bansosItems: LaporanItem[] = (bansosRes.data || []).map((item: any) => ({
@@ -168,12 +184,16 @@ export default function ApprovalPage() {
       id: item.id, no_tiket: item.no_tiket, judul: item.kategori_bencana?.nama_kategori || "Bencana",
       created_at: item.created_at, jenis: "bencana", raw: item,
     }))
+    const nonaktifItems: LaporanItem[] = (nonaktifRes.data || []).map((item: any) => ({
+      id: item.id, no_tiket: "-", judul: item.nama,
+      created_at: item.verified_at || new Date(0).toISOString(), jenis: "nonaktif", raw: item,
+    }))
 
     const gabungan = [...bansosItems, ...bencanaItems].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
 
-    setData(gabungan)
+    setData([...gabungan, ...nonaktifItems])
     setLoading(false)
   }
 
@@ -181,7 +201,8 @@ export default function ApprovalPage() {
     setSelected(item)
     setCatatanKabid("")
 
-    const tableName = item.jenis === "bansos" ? "usulan_bansos" : "laporan_bencana"
+    const tableName =
+      item.jenis === "bansos" ? "usulan_bansos" : item.jenis === "bencana" ? "laporan_bencana" : "penerima_bansos"
 
     const { data: riwayat } = await supabase
       .from("riwayat_status")
@@ -199,8 +220,67 @@ export default function ApprovalPage() {
     setSelected(null)
   }
 
+  // [BARU] Keputusan Kabid untuk usulan penonaktifan peserta:
+  // disetujui = status peserta jadi "nonaktif", ditolak = peserta kembali "aktif"
+  async function handleKeputusanNonaktif(keputusan: "disetujui" | "ditolak") {
+    if (!selected) return
+    if (keputusan === "ditolak" && !catatanKabid.trim()) {
+      alert("Alasan penolakan wajib diisi.")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const user = sessionData.session?.user
+      if (!user) return
+
+      const payload =
+        keputusan === "disetujui"
+          ? { status_kepesertaan: "nonaktif", nonaktif_at: new Date().toISOString() }
+          : { status_kepesertaan: "aktif", alasan_nonaktif: null, nonaktif_at: null }
+
+      const { data: hasil, error } = await supabase
+        .from("penerima_bansos")
+        .update(payload)
+        .eq("id", selected.id)
+        .eq("status_kepesertaan", "usulan_nonaktif")
+        .select("id")
+
+      if (error) throw error
+      if (!hasil || hasil.length === 0) {
+        throw new Error(
+          "Tidak ada data yang berubah. Kemungkinan usulan sudah diputuskan sebelumnya, atau akun ini tidak diizinkan mengubah tabel penerima_bansos (aturan RLS di Supabase)."
+        )
+      }
+
+      await supabase.from("riwayat_status").insert({
+        ref_tabel: "penerima_bansos",
+        ref_id: selected.id,
+        status: keputusan === "disetujui" ? "nonaktif" : "aktif",
+        catatan: catatanKabid || (keputusan === "disetujui" ? "Penonaktifan disetujui Kabid" : null),
+        changed_by: user.id,
+      })
+
+      alert(keputusan === "disetujui" ? "Peserta berhasil dinonaktifkan." : "Usulan nonaktif ditolak, peserta tetap aktif.")
+      closeDetail()
+      loadData()
+    } catch (err: any) {
+      alert("Gagal memproses: " + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleKeputusan(keputusan: "disetujui" | "ditolak") {
     if (!selected) return
+
+    // [BARU] Usulan penonaktifan peserta punya alur sendiri
+    if (selected.jenis === "nonaktif") {
+      await handleKeputusanNonaktif(keputusan)
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -248,6 +328,7 @@ export default function ApprovalPage() {
 
   const getJenisLabel = (jenis: string) => {
     if (jenis === "bansos") return "Bansos"
+    if (jenis === "nonaktif") return "Nonaktif"
     return "Bencana"
   }
 
@@ -288,7 +369,11 @@ export default function ApprovalPage() {
               data.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase">
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-1 rounded uppercase ${
+                        item.jenis === "nonaktif" ? "text-amber-700 bg-amber-50" : "text-gray-500 bg-gray-100"
+                      }`}
+                    >
                       {getJenisLabel(item.jenis)}
                     </span>
                   </td>
@@ -299,9 +384,19 @@ export default function ApprovalPage() {
                         {daftarPeserta(item.raw).length} peserta diajukan
                       </span>
                     )}
+                    {/* [BARU] Kategori alasan penonaktifan */}
+                    {item.jenis === "nonaktif" && (
+                      <span className="block text-[11px] font-normal text-amber-700">
+                        {String(item.raw.alasan_nonaktif || "-").split(" - ")[0]}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{item.no_tiket}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{new Date(item.created_at).toLocaleDateString("id-ID")}</td>
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">
+                    {item.jenis === "nonaktif" ? item.raw.nik : item.no_tiket}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">
+                    {item.jenis === "nonaktif" ? "-" : new Date(item.created_at).toLocaleDateString("id-ID")}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => openDetail(item)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
                       Tinjau
@@ -320,10 +415,14 @@ export default function ApprovalPage() {
             <div className="flex justify-between items-start mb-5">
               <div>
                 <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase">
-                  {selected.jenis === "bansos" ? "BPJS PBI" : getJenisLabel(selected.jenis)}
+                  {selected.jenis === "bansos"
+                    ? "BPJS PBI"
+                    : selected.jenis === "nonaktif"
+                    ? "Usulan Nonaktif"
+                    : getJenisLabel(selected.jenis)}
                 </span>
                 <h2 className="text-lg font-bold text-gray-900 mt-2">{selected.judul}</h2>
-                <p className="text-xs text-gray-400 font-mono">{selected.no_tiket}</p>
+                <p className="text-xs text-gray-400 font-mono">{selected.jenis === "nonaktif" ? raw.nik : selected.no_tiket}</p>
               </div>
               <button onClick={closeDetail} className="text-gray-400 hover:text-gray-700">✕</button>
             </div>
@@ -402,6 +501,38 @@ export default function ApprovalPage() {
               </div>
             )}
 
+            {/* [BARU] Detail usulan penonaktifan peserta */}
+            {selected.jenis === "nonaktif" && (
+              <div className="space-y-5 mb-5">
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase mb-1">Alasan Penonaktifan</p>
+                  <p className="text-sm text-amber-900">{raw.alasan_nonaktif || "-"}</p>
+                </div>
+
+                <Section title="Data Peserta">
+                  <DetailRow label="Nama Peserta" value={raw.nama} />
+                  <DetailRow label="NIK" value={raw.nik} />
+                  <DetailRow label="No. KK" value={raw.no_kk} />
+                  <DetailRow
+                    label="Kepala Keluarga"
+                    value={raw.nama_kepala_keluarga ? `${raw.nama_kepala_keluarga}${raw.nik_kepala_keluarga ? ` (${raw.nik_kepala_keluarga})` : ""}` : ""}
+                  />
+                  <DetailRow label="Jenis Kepesertaan" value={labelJenisKepesertaan(raw.jenis_kepesertaan)} />
+                  <DetailRow label="Hubungan dengan KK" value={raw.hubungan_keluarga} />
+                  <DetailRow label="Tempat, Tanggal Lahir" value={ttl(raw.tempat_lahir, raw.tanggal_lahir)} />
+                  <DetailRow label="RT / RW" value={raw.rt || raw.rw ? `${raw.rt || "-"} / ${raw.rw || "-"}` : ""} />
+                  <DetailRow label="Desa/Kelurahan" value={raw.kelurahan} />
+                  <DetailRow label="Kecamatan" value={raw.kecamatan} />
+                  <DetailRow label="Alamat" value={raw.alamat} />
+                  <DetailRow label="Pekerjaan" value={raw.pekerjaan} />
+                  <DetailRow label="Penghasilan/Bulan" value={raw.penghasilan_bulanan} />
+                  <DetailRow label="Status Kepemilikan Rumah" value={raw.status_kepemilikan_rumah} />
+                  <DetailRow label="Jumlah Tanggungan KK" value={raw.jumlah_tanggungan != null ? `${raw.jumlah_tanggungan} orang` : ""} />
+                  <DetailRow label="No. Kontak/WhatsApp" value={raw.no_kontak} />
+                </Section>
+              </div>
+            )}
+
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
               <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">Catatan Petugas Lapangan</p>
               <p className="text-xs text-blue-900">{catatanPetugas}</p>
@@ -409,7 +540,9 @@ export default function ApprovalPage() {
 
             <div className="border-t border-gray-100 pt-4 space-y-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Catatan Keputusan (opsional)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Catatan Keputusan {selected.jenis === "nonaktif" ? "(wajib diisi jika menolak)" : "(opsional)"}
+                </label>
                 <textarea
                   value={catatanKabid} onChange={(e) => setCatatanKabid(e.target.value)} rows={2}
                   placeholder="Catatan alasan keputusan..."
@@ -421,13 +554,13 @@ export default function ApprovalPage() {
                   onClick={() => handleKeputusan("ditolak")} disabled={saving}
                   className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-lg py-2.5 transition-all"
                 >
-                  {saving ? "Memproses..." : "Tolak"}
+                  {saving ? "Memproses..." : selected.jenis === "nonaktif" ? "Tolak (Tetap Aktif)" : "Tolak"}
                 </button>
                 <button
                   onClick={() => handleKeputusan("disetujui")} disabled={saving}
                   className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white text-sm font-bold rounded-lg py-2.5 transition-all"
                 >
-                  {saving ? "Memproses..." : "Setujui"}
+                  {saving ? "Memproses..." : selected.jenis === "nonaktif" ? "Setujui Nonaktif" : "Setujui"}
                 </button>
               </div>
             </div>
