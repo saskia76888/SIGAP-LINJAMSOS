@@ -58,6 +58,8 @@ function BerkasUpload({
   inputRef,
   onSelect,
   urlLama,
+  wajib = true,
+  catatan,
 }: {
   label: string
   hint: string
@@ -66,12 +68,15 @@ function BerkasUpload({
   inputRef: React.RefObject<HTMLInputElement | null>
   onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
   urlLama?: string | null
+  wajib?: boolean
+  catatan?: string
 }) {
   return (
     <div>
       <label className="block text-xs font-bold text-gray-700 mb-1.5">
-        {label} <span className="text-red-500">*</span>
+        {label} {wajib && <span className="text-red-500">*</span>}
       </label>
+      {catatan && <p className="text-[10px] text-gray-400 -mt-1 mb-1.5">{catatan}</p>}
       <input
         type="file"
         ref={inputRef}
@@ -132,7 +137,11 @@ function AjukanBansosContent() {
     kk: string | null
     sktm: string | null
     assesment: string | null
-  }>({ foto: null, dokumen: null, kk: null, sktm: null, assesment: null })
+    keaslian: string | null
+    desil: string | null
+    faskes: string | null
+    pasien: string | null
+  }>({ foto: null, dokumen: null, kk: null, sktm: null, assesment: null, keaslian: null, desil: null, faskes: null, pasien: null })
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -140,6 +149,10 @@ function AjukanBansosContent() {
   const kkInputRef = useRef<HTMLInputElement>(null)
   const sktmInputRef = useRef<HTMLInputElement>(null)
   const assesmentInputRef = useRef<HTMLInputElement>(null)
+  const keaslianInputRef = useRef<HTMLInputElement>(null)
+  const desilInputRef = useRef<HTMLInputElement>(null)
+  const faskesInputRef = useRef<HTMLInputElement>(null)
+  const pasienInputRef = useRef<HTMLInputElement>(null)
 
   // id kategori PBI-JK diambil otomatis dari tabel kategori_bantuan
   const [pbiId, setPbiId] = useState("")
@@ -155,6 +168,15 @@ function AjukanBansosContent() {
   const [sktmPreview, setSktmPreview] = useState<string | null>(null)
   const [assesmentFile, setAssesmentFile] = useState<File | null>(null)
   const [assesmentPreview, setAssesmentPreview] = useState<string | null>(null)
+  // [BARU] Dokumen keaslian desa, screenshot desil, formulir faskes, foto pasien
+  const [keaslianFile, setKeaslianFile] = useState<File | null>(null)
+  const [keaslianPreview, setKeaslianPreview] = useState<string | null>(null)
+  const [desilFile, setDesilFile] = useState<File | null>(null)
+  const [desilPreview, setDesilPreview] = useState<string | null>(null)
+  const [faskesFile, setFaskesFile] = useState<File | null>(null)
+  const [faskesPreview, setFaskesPreview] = useState<string | null>(null)
+  const [pasienFile, setPasienFile] = useState<File | null>(null)
+  const [pasienPreview, setPasienPreview] = useState<string | null>(null)
 
   const [wilayahUser, setWilayahUser] = useState("")
   // [BARU] true kalau RT/RW berhasil diambil dari akun, maka field dikunci
@@ -189,6 +211,9 @@ function AjukanBansosContent() {
     hubunganKeluarga: "",
     tempatLahirPeserta: "",
     tanggalLahirPeserta: "",
+    // [BARU] KTP milik siapa & nama penyakit (khusus desil 6-10)
+    ktpMilik: "",
+    penyakit: "",
   })
 
   useEffect(() => {
@@ -281,6 +306,10 @@ function AjukanBansosContent() {
             kk: row.dokumen_kk_url || null,
             sktm: row.dokumen_sktm_url || null,
             assesment: row.dokumen_assesment_url || null,
+            keaslian: row.dokumen_keaslian_desa_url || null,
+            desil: row.dokumen_desil_url || null,
+            faskes: row.dokumen_faskes_url || null,
+            pasien: row.dokumen_foto_pasien_url || null,
           })
           setFormData((prev) => ({
             ...prev,
@@ -307,6 +336,8 @@ function AjukanBansosContent() {
             hubunganKeluarga: row.hubungan_keluarga || "",
             tempatLahirPeserta: row.tempat_lahir_peserta || "",
             tanggalLahirPeserta: isoKeTanggal(row.tanggal_lahir_peserta),
+            ktpMilik: row.ktp_milik || "",
+            penyakit: row.penyakit || "",
           }))
         }
       }
@@ -403,6 +434,21 @@ function AjukanBansosContent() {
       return
     }
 
+    if (!dokumenFile && !berkasLama.dokumen) {
+      alert("KTP wajib diunggah. Kalau peserta belum punya KTP (misalnya anak), unggah KTP orang tua atau kepala keluarga.")
+      return
+    }
+
+    if (!formData.ktpMilik) {
+      alert("Pilih KTP tersebut milik siapa")
+      return
+    }
+
+    if ((!keaslianFile && !berkasLama.keaslian) || (!desilFile && !berkasLama.desil)) {
+      alert("Dokumen keaslian dari Desa dan screenshot desil wajib diunggah")
+      return
+    }
+
     if (!pbiId) {
       alert("Kategori PBI-JK tidak ditemukan. Muat ulang halaman atau hubungi admin.")
       return
@@ -429,6 +475,10 @@ function AjukanBansosContent() {
       const kkUrl = kkFile ? await uploadFile(kkFile, "bansos-kk") : berkasLama.kk
       const sktmUrl = sktmFile ? await uploadFile(sktmFile, "bansos-sktm") : berkasLama.sktm
       const assesmentUrl = assesmentFile ? await uploadFile(assesmentFile, "bansos-assesment") : berkasLama.assesment
+      const keaslianUrl = keaslianFile ? await uploadFile(keaslianFile, "bansos-keaslian") : berkasLama.keaslian
+      const desilUrl = desilFile ? await uploadFile(desilFile, "bansos-desil") : berkasLama.desil
+      const faskesUrl = faskesFile ? await uploadFile(faskesFile, "bansos-faskes") : berkasLama.faskes
+      const pasienUrl = pasienFile ? await uploadFile(pasienFile, "bansos-pasien") : berkasLama.pasien
 
       const noTiket = isEdit ? noTiketEdit : "PGD-" + Date.now()
 
@@ -447,13 +497,20 @@ function AjukanBansosContent() {
         dokumen_kk_url: kkUrl,
         dokumen_sktm_url: sktmUrl,
         dokumen_assesment_url: assesmentUrl,
+        // [BARU] Keaslian desa, screenshot desil, formulir faskes, foto pasien, KTP milik, nama penyakit
+        dokumen_keaslian_desa_url: keaslianUrl,
+        dokumen_desil_url: desilUrl,
+        dokumen_faskes_url: faskesUrl,
+        dokumen_foto_pasien_url: pasienUrl,
+        ktp_milik: formData.ktpMilik,
+        penyakit: formData.penyakit || null,
         status_kepemilikan_rumah: formData.statusKepemilikanRumah,
         pekerjaan: formData.pekerjaan,
         penghasilan_bulanan: formData.penghasilanBulanan,
         jumlah_tanggungan: formData.jumlahTanggungan ? parseInt(formData.jumlahTanggungan) : null,
         status: "baru",
         // Saat perbaikan: catatan petugas dibersihkan, status kembali "baru"
-        ...(editId ? { catatan_petugas: null } : {}),
+        ...(editId ? { catatan_petugas: null, desil_verifikasi: null, penyakit_kronis: null } : {}),
         // [BARU] Kolom tambahan sesuai form POLINDA
         jenis_kepesertaan: formData.jenisKepesertaan,
         hubungan_keluarga: formData.hubunganKeluarga,
@@ -490,7 +547,9 @@ function AjukanBansosContent() {
   const berkasWajib = [
     { label: "KK (NIK valid)", file: kkFile, preview: kkPreview },
     { label: "Surat Keterangan Tidak Mampu", file: sktmFile, preview: sktmPreview },
-    { label: "Formulir Assessment", file: assesmentFile, preview: assesmentPreview },
+    { label: "Dokumen Keaslian (dari Desa)", file: keaslianFile, preview: keaslianPreview },
+    { label: "Formulir Assessment (Lapad Ruhama)", file: assesmentFile, preview: assesmentPreview },
+    { label: "Screenshot Desil", file: desilFile, preview: desilPreview },
   ]
 
   return (
@@ -875,13 +934,34 @@ function AjukanBansosContent() {
                   />
 
                   <BerkasUpload
-                    label="Dokumen Formulir Assessment"
+                    label="Dokumen Keaslian (dari Desa)"
+                    hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                    file={keaslianFile}
+                    preview={keaslianPreview}
+                    inputRef={keaslianInputRef}
+                    urlLama={berkasLama.keaslian}
+                    onSelect={(e) => handleBerkasSelect(e, setKeaslianFile, setKeaslianPreview)}
+                  />
+
+                  <BerkasUpload
+                    label="Formulir Assessment (dari Lapad Ruhama)"
                     hint="Format: PDF, JPG, PNG (Maks. 5MB)"
                     file={assesmentFile}
                     preview={assesmentPreview}
                     inputRef={assesmentInputRef}
                     urlLama={berkasLama.assesment}
                     onSelect={(e) => handleBerkasSelect(e, setAssesmentFile, setAssesmentPreview)}
+                  />
+
+                  <BerkasUpload
+                    label="Screenshot Desil"
+                    hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                    catatan="Pastikan nama atau NIK dan tanggal terlihat jelas di screenshot. Petugas akan mencocokkannya dengan data peserta."
+                    file={desilFile}
+                    preview={desilPreview}
+                    inputRef={desilInputRef}
+                    urlLama={berkasLama.desil}
+                    onSelect={(e) => handleBerkasSelect(e, setDesilFile, setDesilPreview)}
                   />
 
                   <div>
@@ -921,7 +1001,14 @@ function AjukanBansosContent() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Dokumen Lainnya (opsional, misal KTP)</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">KTP <span className="text-red-500">*</span></label>
+                    <p className="text-[10px] text-gray-400 -mt-1 mb-1.5">Kalau peserta belum punya KTP (misalnya anak), unggah KTP orang tua atau kepala keluarga.</p>
+                    <select name="ktpMilik" value={formData.ktpMilik} onChange={handleChange} className={`${inputCls} mb-2`}>
+                      <option value="">KTP milik siapa?</option>
+                      <option value="Peserta sendiri">Peserta sendiri</option>
+                      <option value="Orang tua">Orang tua</option>
+                      <option value="Kepala keluarga">Kepala keluarga</option>
+                    </select>
                     <input
                       type="file"
                       ref={dokumenInputRef}
@@ -942,12 +1029,18 @@ function AjukanBansosContent() {
                           </svg>
                           <span className="text-xs font-semibold text-gray-700">{dokumenFile.name}</span>
                         </>
+                      ) : berkasLama.dokumen ? (
+                        <>
+                          <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          <span className="text-xs font-semibold text-green-700">KTP sudah diunggah</span>
+                          <span className="text-[9px] text-gray-400">Klik untuk mengganti dengan berkas baru</span>
+                        </>
                       ) : (
                         <>
                           <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          <span className="text-xs font-medium text-gray-700">Klik untuk unggah dokumen (opsional)</span>
+                          <span className="text-xs font-medium text-gray-700">Klik untuk unggah KTP</span>
                           <span className="text-[9px] text-gray-400">Format: JPG, PNG, atau PDF</span>
                         </>
                       )}
@@ -955,9 +1048,52 @@ function AjukanBansosContent() {
                     {dokumenFile && (
                       <p className="text-[10px] text-green-600 mt-1.5 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                        Dokumen terunggah: {dokumenFile.name}
+                        KTP terunggah: {dokumenFile.name}
                       </p>
                     )}
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-amber-900">Khusus desil 6-10</h3>
+                      <p className="text-[10px] text-amber-800 mt-0.5 leading-relaxed">
+                        Wajib diisi bila desil pada screenshot adalah 6 sampai 10. Petugas akan memeriksa foto formulir faskes dan foto pasien. Usulan desil 6-10 tanpa berkas ini akan dikembalikan.
+                      </p>
+                    </div>
+
+                    <BerkasUpload
+                      label="Formulir dari Faskes (diagnosis penyakit)"
+                      hint="Format: PDF, JPG, PNG (Maks. 5MB)"
+                      wajib={false}
+                      catatan="Wajib diisi bila desil 6-10"
+                      file={faskesFile}
+                      preview={faskesPreview}
+                      inputRef={faskesInputRef}
+                      urlLama={berkasLama.faskes}
+                      onSelect={(e) => handleBerkasSelect(e, setFaskesFile, setFaskesPreview)}
+                    />
+
+                    <BerkasUpload
+                      label="Foto Pasien"
+                      hint="Format: JPG, PNG, PDF (Maks. 5MB)"
+                      wajib={false}
+                      catatan="Wajib diisi bila desil 6-10"
+                      file={pasienFile}
+                      preview={pasienPreview}
+                      inputRef={pasienInputRef}
+                      urlLama={berkasLama.pasien}
+                      onSelect={(e) => handleBerkasSelect(e, setPasienFile, setPasienPreview)}
+                    />
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Penyakit (sesuai formulir faskes)</label>
+                      <input
+                        type="text" name="penyakit" value={formData.penyakit} onChange={handleChange}
+                        placeholder="Isi bila desil 6-10"
+                        className={inputCls}
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">Hanya bantuan membaca. Yang dinilai petugas adalah foto formulir faskes.</p>
+                    </div>
                   </div>
                 </div>
 
@@ -974,7 +1110,7 @@ function AjukanBansosContent() {
                       formData.nik.length !== 16 ||
                       !formData.tempatLahirPeserta ||
                       !tanggalValid(formData.tanggalLahirPeserta) ||
-                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || (!fotoFile && !berkasLama.foto) || (!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment)
+                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || (!fotoFile && !berkasLama.foto) || (!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment) || (!dokumenFile && !berkasLama.dokumen) || !formData.ktpMilik || (!keaslianFile && !berkasLama.keaslian) || (!desilFile && !berkasLama.desil)
                     }
                     className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 disabled:text-gray-500 text-white text-xs font-bold rounded-xl py-3 transition-all flex items-center justify-center gap-1"
                   >
@@ -1002,6 +1138,8 @@ function AjukanBansosContent() {
                     ["Jenis Kepesertaan", formData.jenisKepesertaan],
                     ["Hubungan dengan KK", formData.hubunganKeluarga],
                     ["TTL Peserta", `${formData.tempatLahirPeserta}, ${formData.tanggalLahirPeserta}`],
+                    ["KTP milik", formData.ktpMilik],
+                    ["Nama penyakit (desil 6-10)", formData.penyakit || "-"],
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between border-b border-gray-200/60 pb-1.5">
                       <span className="text-gray-400">{k}</span>
@@ -1082,17 +1220,31 @@ function AjukanBansosContent() {
                       {dokumenPreview && (
                         <img src={dokumenPreview} alt="Dokumen" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
                       )}
-                      <span className={dokumenFile ? "text-green-600 font-semibold flex items-center gap-1" : "text-gray-400"}>
-                        {dokumenFile ? (
+                      <span className={dokumenFile || berkasLama.dokumen ? "text-green-600 font-semibold flex items-center gap-1" : "text-red-500"}>
+                        {dokumenFile || berkasLama.dokumen ? (
                           <>
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                            Dokumen lainnya: Terunggah
+                            KTP: Terunggah
                           </>
                         ) : (
-                          "Dokumen lainnya: Tidak diunggah"
+                          "KTP: Belum diunggah"
                         )}
                       </span>
                     </div>
+
+                    {[
+                      { label: "Formulir faskes (desil 6-10)", ada: faskesFile || berkasLama.faskes, preview: faskesPreview },
+                      { label: "Foto pasien (desil 6-10)", ada: pasienFile || berkasLama.pasien, preview: pasienPreview },
+                    ].map((b) => (
+                      <div key={b.label} className="flex items-center gap-2">
+                        {b.preview && (
+                          <img src={b.preview} alt={b.label} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                        )}
+                        <span className={b.ada ? "text-green-600 font-semibold" : "text-gray-400"}>
+                          {b.label}: {b.ada ? "Terunggah" : "Tidak diunggah"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="flex flex-col gap-1 pt-1">
@@ -1131,7 +1283,7 @@ function AjukanBansosContent() {
               </div>
               <div className="flex gap-2.5 items-start">
                 <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">02</span>
-                <p>Siapkan berkas persyaratan dalam bentuk soft copy: KK dengan NIK valid, Surat Keterangan Tidak Mampu dari Desa, dan Formulir Assessment.</p>
+                <p>Siapkan berkas dalam bentuk soft copy: KK dengan NIK valid, KTP, Surat Keterangan Tidak Mampu dan dokumen keaslian dari Desa, Formulir Assessment dari Lapad Ruhama, serta screenshot desil.</p>
               </div>
               <div className="flex gap-2.5 items-start">
                 <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">03</span>
@@ -1140,6 +1292,10 @@ function AjukanBansosContent() {
               <div className="flex gap-2.5 items-start">
                 <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">04</span>
                 <p>Berkas yang tidak lengkap atau tidak benar akan dikembalikan untuk dilengkapi. Berkas yang lengkap dan benar akan diproses oleh petugas lapangan dalam waktu 3-5 hari kerja.</p>
+              </div>
+              <div className="flex gap-2.5 items-start">
+                <span className="font-bold text-white bg-blue-900/40 w-5 h-5 rounded-md flex items-center justify-center shrink-0">05</span>
+                <p>Bila desil pada screenshot 6 sampai 10, lampirkan formulir dari faskes dan foto pasien. Petugas akan memeriksanya dan menentukan apakah penyakitnya termasuk kronis.</p>
               </div>
             </div>
           </div>

@@ -39,6 +39,9 @@ export default function VerifikasiPage() {
   const [catatan, setCatatan] = useState("")
   const [statusBaru, setStatusBaru] = useState("")
   const [saving, setSaving] = useState(false)
+  // [BARU] Desil hasil verifikasi petugas dan penilaian penyakit kronis (khusus desil 6-10)
+  const [desil, setDesil] = useState("")
+  const [kronis, setKronis] = useState("")
 
   useEffect(() => {
     loadData()
@@ -50,6 +53,7 @@ export default function VerifikasiPage() {
       supabase
         .from("usulan_bansos")
         .select("*, kategori_bantuan(nama_kategori), users:rt_rw_id(nama, wilayah)")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
         .from("laporan_bencana")
@@ -104,6 +108,8 @@ export default function VerifikasiPage() {
     setSelected(item)
     setStatusBaru(item.status)
     setCatatan("")
+    setDesil(item.raw?.desil_verifikasi != null ? String(item.raw.desil_verifikasi) : "")
+    setKronis(item.raw?.penyakit_kronis === true ? "ya" : item.raw?.penyakit_kronis === false ? "tidak" : "")
   }
 
   function closeDetail() {
@@ -115,11 +121,19 @@ export default function VerifikasiPage() {
     if (!selected) return
     const target = statusTujuan ?? statusBaru
 
-    // [BARU] Penolakan usulan wajib disertai alasan
-    if (selected.jenis === "bansos" && target === "ditolak" && !catatan.trim()) {
-      alert("Alasan penolakan wajib diisi (misal: Foto rumah tidak sesuai, KK tidak terbaca).")
-      return
+    if (selected.jenis === "bansos") {
+      // [BARU] Rekomendasi ke Kabid dikunci kalau syarat desil belum terpenuhi
+      if (target === "diverifikasi" && blokir) {
+        alert(blokir)
+        return
+      }
+      // [BARU] Penolakan wajib disertai alasan. Kalau kosong, dipakai alasan otomatis dari aturan desil
+      if (target === "ditolak" && !catatan.trim() && !alasanTolak) {
+        alert("Alasan penolakan wajib diisi (misal: Foto rumah tidak sesuai, KK tidak terbaca).")
+        return
+      }
     }
+    const alasanFinal = catatan.trim() || (selected.jenis === "bansos" && target === "ditolak" ? alasanTolak : "")
 
     setSaving(true)
 
@@ -132,7 +146,11 @@ export default function VerifikasiPage() {
 
       // [BARU] Catatan petugas juga disimpan di usulan supaya tampil di halaman lacak warga
       const payload: any = { status: target }
-      if (selected.jenis === "bansos") payload.catatan_petugas = catatan.trim() || null
+      if (selected.jenis === "bansos") {
+        payload.catatan_petugas = alasanFinal || null
+        payload.desil_verifikasi = desil ? parseInt(desil) : null
+        payload.penyakit_kronis = desilTinggi ? (kronis === "ya" ? true : kronis === "tidak" ? false : null) : null
+      }
 
       const { error: updateError } = await supabase
         .from(tableName)
@@ -145,7 +163,7 @@ export default function VerifikasiPage() {
         ref_tabel: tableName,
         ref_id: selected.id,
         status: target,
-        catatan: catatan || null,
+        catatan: alasanFinal || null,
         changed_by: user.id,
       })
 
@@ -219,6 +237,30 @@ export default function VerifikasiPage() {
 
   // [BARU] Usulan yang sudah disetujui/selesai tidak bisa diubah lagi oleh petugas
   const terkunci = selected?.jenis === "bansos" && ["disetujui", "selesai"].includes((selected?.status || "").toLowerCase())
+
+  // [BARU] Aturan desil. Desil 6-10 hanya layak bila ada formulir faskes + foto pasien dan petugas menilai penyakitnya kronis
+  const rawBansos = selected?.jenis === "bansos" ? selected.raw : null
+  const desilTinggi = (desil ? parseInt(desil) : 0) >= 6
+  let blokir = "" // alasan tombol "Rekomendasikan ke Kabid" terkunci
+  let alasanTolak = "" // alasan penolakan otomatis, hanya bila memang tidak memenuhi syarat
+  if (rawBansos) {
+    if (!rawBansos.dokumen_desil_url) {
+      blokir = "Screenshot desil belum diunggah. Usulan hanya bisa dikembalikan."
+      alasanTolak = "Screenshot desil belum diunggah."
+    } else if (!desil) {
+      blokir = "Baca desil dari screenshot, lalu isi desil hasil verifikasi terlebih dahulu."
+    } else if (desilTinggi) {
+      if (!rawBansos.dokumen_faskes_url || !rawBansos.dokumen_foto_pasien_url) {
+        blokir = "Desil 6-10 wajib melampirkan formulir dari faskes dan foto pasien. Usulan hanya bisa dikembalikan."
+        alasanTolak = "Desil " + desil + ": formulir dari faskes dan foto pasien wajib dilampirkan."
+      } else if (kronis === "") {
+        blokir = "Periksa foto formulir faskes dan foto pasien, lalu tentukan penyakit kronis atau bukan."
+      } else if (kronis === "tidak") {
+        blokir = "Desil 6-10 hanya dapat disetujui bila penyakitnya kronis. Usulan hanya bisa dikembalikan."
+        alasanTolak = "Desil " + desil + ": penyakit pada formulir faskes tidak termasuk kronis, sehingga tidak memenuhi syarat."
+      }
+    }
+  }
 
   if (loading) {
     return <div className="p-8 text-sm text-gray-500 dark:text-gray-400 font-medium">Memuat data verifikasi laporan...</div>
@@ -415,15 +457,23 @@ export default function VerifikasiPage() {
                   />
                   <DetailRow label="Diusulkan oleh" value={selected.raw.users?.nama ? `${selected.raw.users.nama}${selected.raw.users?.wilayah ? ` (${selected.raw.users.wilayah})` : ""}` : ""} />
                 </Section>
+                <Section title="Kesehatan (khusus desil 6-10)">
+                  <DetailRow label="Nama penyakit (isian RT/RW)" value={selected.raw.penyakit} />
+                </Section>
+
 
                 <div className="space-y-3">
                   <h3 className="text-[11px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">Berkas Persyaratan</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <BerkasItem label="Kartu Keluarga (KK)" url={selected.raw.dokumen_kk_url} />
-                    <BerkasItem label="Surat Keterangan Tidak Mampu" url={selected.raw.dokumen_sktm_url} />
-                    <BerkasItem label="Formulir Assessment" url={selected.raw.dokumen_assesment_url} />
+                    <BerkasItem label="Surat Keterangan Tidak Mampu (Desa)" url={selected.raw.dokumen_sktm_url} />
+                    <BerkasItem label="Dokumen Keaslian (Desa)" url={selected.raw.dokumen_keaslian_desa_url} />
+                    <BerkasItem label="Formulir Assessment (Lapad Ruhama)" url={selected.raw.dokumen_assesment_url} />
+                    <BerkasItem label="Screenshot Desil" url={selected.raw.dokumen_desil_url} />
                     <BerkasItem label="Foto Rumah Tampak Depan" url={selected.raw.foto_url} />
-                    <BerkasItem label="Dokumen Lainnya" url={selected.raw.dokumen_pendukung_url} opsional />
+                    <BerkasItem label={`KTP${selected.raw.ktp_milik ? ` (milik ${String(selected.raw.ktp_milik).toLowerCase()})` : ""}`} url={selected.raw.dokumen_pendukung_url} />
+                    <BerkasItem label="Formulir dari Faskes (desil 6-10)" url={selected.raw.dokumen_faskes_url} opsional={!desilTinggi} />
+                    <BerkasItem label="Foto Pasien (desil 6-10)" url={selected.raw.dokumen_foto_pasien_url} opsional={!desilTinggi} />
                   </div>
                 </div>
               </div>
@@ -451,6 +501,51 @@ export default function VerifikasiPage() {
               {selected.jenis === "bansos" ? (
                 /* [BARU] Aksi petugas untuk usulan BPJS PBI */
                 <>
+                  <div className="rounded-xl border border-purple-200 dark:border-purple-500/30 bg-purple-50/40 dark:bg-purple-500/5 p-4 space-y-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">Verifikasi Desil</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                        Baca desil dari screenshot, lalu cocokkan nama atau NIK dan tanggal di screenshot dengan data peserta.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Desil hasil verifikasi</label>
+                        <select
+                          value={desil}
+                          onChange={(e) => setDesil(e.target.value)}
+                          disabled={terkunci}
+                          className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:border-purple-600 disabled:opacity-60"
+                        >
+                          <option value="">Pilih desil</option>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((d) => (
+                            <option key={d} value={String(d)}>Desil {d}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {desilTinggi && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Penyakit kronis?</label>
+                          <select
+                            value={kronis}
+                            onChange={(e) => setKronis(e.target.value)}
+                            disabled={terkunci}
+                            className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-gray-100 focus:outline-none focus:border-purple-600 disabled:opacity-60"
+                          >
+                            <option value="">Pilih setelah memeriksa foto</option>
+                            <option value="ya">Ya, kronis</option>
+                            <option value="tidak">Tidak kronis</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                    {blokir && !terkunci && (
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg p-2.5 leading-relaxed">
+                        {blokir}
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">
                       Catatan Pemeriksaan <span className="normal-case font-medium text-gray-400">(wajib diisi jika menolak)</span>
@@ -480,7 +575,7 @@ export default function VerifikasiPage() {
                       </button>
                       <button
                         onClick={() => handleUpdateStatus("diverifikasi")}
-                        disabled={saving}
+                        disabled={saving || !!blokir}
                         className="w-full bg-[#1e1b4b] hover:bg-purple-900 dark:bg-purple-600 dark:hover:bg-purple-500 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-xs font-bold rounded-xl py-3.5 transition-all shadow-sm"
                       >
                         {saving ? "Menyimpan..." : "Rekomendasikan ke Kabid"}

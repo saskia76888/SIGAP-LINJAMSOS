@@ -152,6 +152,9 @@ export default function ApprovalPage() {
   const [catatanPetugas, setCatatanPetugas] = useState<string>("")
   const [catatanKabid, setCatatanKabid] = useState("")
   const [saving, setSaving] = useState(false)
+  // [BARU] Usulan pendaftaran asal dari peserta yang diusulkan nonaktif (sumber data lengkap + berkas)
+  const [usulanAsal, setUsulanAsal] = useState<any>(null)
+  const [loadingAsal, setLoadingAsal] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -200,6 +203,19 @@ export default function ApprovalPage() {
   async function openDetail(item: LaporanItem) {
     setSelected(item)
     setCatatanKabid("")
+
+    // [BARU] Peserta yang diusulkan nonaktif: ambil usulan asalnya lewat usulan_id
+    setUsulanAsal(null)
+    if (item.jenis === "nonaktif" && item.raw.usulan_id) {
+      setLoadingAsal(true)
+      const { data: asal } = await supabase
+        .from("usulan_bansos")
+        .select("*")
+        .eq("id", item.raw.usulan_id)
+        .maybeSingle()
+      setUsulanAsal(asal || null)
+      setLoadingAsal(false)
+    }
 
     const tableName =
       item.jenis === "bansos" ? "usulan_bansos" : item.jenis === "bencana" ? "laporan_bencana" : "penerima_bansos"
@@ -342,6 +358,34 @@ export default function ApprovalPage() {
     ? `${raw.users.nama}${raw.users.wilayah ? ` (${raw.users.wilayah})` : ""}`
     : ""
 
+  // [BARU] Data peserta yang diusulkan nonaktif: pakai isi baris peserta, kalau kosong ambil dari usulan asalnya
+  const asal = usulanAsal
+  const pesertaAsal = selected?.jenis === "nonaktif" && asal ? daftarPeserta(asal).find((p) => p.nik === raw?.nik) : undefined
+  const pn =
+    selected?.jenis === "nonaktif"
+      ? {
+          noKk: raw?.no_kk || asal?.no_kk || "",
+          nikKk: raw?.nik_kepala_keluarga || (asal ? nikKepalaKeluarga(asal) : "") || "",
+          namaKk: raw?.nama_kepala_keluarga || (asal ? namaKepalaKeluarga(asal) : "") || "",
+          rt: raw?.rt || asal?.rt || "",
+          rw: raw?.rw || asal?.rw || "",
+          desa: raw?.kelurahan || asal?.desa || "",
+          kecamatan: raw?.kecamatan || asal?.kecamatan || "",
+          alamat: raw?.alamat || asal?.alamat || "",
+          jenis: raw?.jenis_kepesertaan || asal?.jenis_kepesertaan || "",
+          hubungan: raw?.hubungan_keluarga || pesertaAsal?.hubungan || asal?.hubungan_keluarga || "",
+          tempat: raw?.tempat_lahir || pesertaAsal?.tempat_lahir || asal?.tempat_lahir_peserta || "",
+          tanggal: raw?.tanggal_lahir || pesertaAsal?.tanggal_lahir || asal?.tanggal_lahir_peserta || "",
+          pekerjaan: raw?.pekerjaan || asal?.pekerjaan || "",
+          penghasilan: raw?.penghasilan_bulanan || asal?.penghasilan_bulanan || "",
+          rumah: raw?.status_kepemilikan_rumah || asal?.status_kepemilikan_rumah || "",
+          tanggungan: raw?.jumlah_tanggungan ?? asal?.jumlah_tanggungan ?? null,
+          kondisi: asal?.kondisi_ekonomi || "",
+          kontak: raw?.no_kontak || asal?.no_kontak || "",
+          maps: asal?.link_maps || "",
+        }
+      : null
+
   return (
     <div className="p-8 space-y-5">
       <div>
@@ -477,15 +521,29 @@ export default function ApprovalPage() {
                   />
                   <DetailRow label="Diusulkan oleh" value={pengusul} />
                 </Section>
+                <Section title="Verifikasi Desil (oleh Petugas)">
+                  <DetailRow label="Desil hasil verifikasi" value={raw.desil_verifikasi != null ? `Desil ${raw.desil_verifikasi}` : ""} />
+                  {raw.desil_verifikasi >= 6 && (
+                    <>
+                      <DetailRow label="Penyakit kronis (hasil periksa petugas)" value={raw.penyakit_kronis === true ? "Ya" : raw.penyakit_kronis === false ? "Tidak" : ""} />
+                      <DetailRow label="Nama penyakit (isian RT/RW)" value={raw.penyakit} />
+                    </>
+                  )}
+                </Section>
+
 
                 <div className="space-y-2">
                   <h3 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Berkas Persyaratan</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <BerkasItem label="Kartu Keluarga (KK)" url={raw.dokumen_kk_url} />
-                    <BerkasItem label="Surat Keterangan Tidak Mampu" url={raw.dokumen_sktm_url} />
-                    <BerkasItem label="Formulir Assessment" url={raw.dokumen_assesment_url} />
+                    <BerkasItem label="Surat Keterangan Tidak Mampu (Desa)" url={raw.dokumen_sktm_url} />
+                    <BerkasItem label="Dokumen Keaslian (Desa)" url={raw.dokumen_keaslian_desa_url} />
+                    <BerkasItem label="Formulir Assessment (Lapad Ruhama)" url={raw.dokumen_assesment_url} />
+                    <BerkasItem label="Screenshot Desil" url={raw.dokumen_desil_url} />
                     <BerkasItem label="Foto Rumah Tampak Depan" url={raw.foto_url} />
-                    <BerkasItem label="Dokumen Lainnya" url={raw.dokumen_pendukung_url} opsional />
+                    <BerkasItem label={`KTP${raw.ktp_milik ? ` (milik ${String(raw.ktp_milik).toLowerCase()})` : ""}`} url={raw.dokumen_pendukung_url} />
+                    <BerkasItem label="Formulir dari Faskes (desil 6-10)" url={raw.dokumen_faskes_url} opsional={!(raw.desil_verifikasi >= 6)} />
+                    <BerkasItem label="Foto Pasien (desil 6-10)" url={raw.dokumen_foto_pasien_url} opsional={!(raw.desil_verifikasi >= 6)} />
                   </div>
                 </div>
               </div>
@@ -502,34 +560,83 @@ export default function ApprovalPage() {
             )}
 
             {/* [BARU] Detail usulan penonaktifan peserta */}
-            {selected.jenis === "nonaktif" && (
+            {selected.jenis === "nonaktif" && pn && (
               <div className="space-y-5 mb-5">
                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
                   <p className="text-[10px] font-bold text-amber-800 uppercase mb-1">Alasan Penonaktifan</p>
                   <p className="text-sm text-amber-900">{raw.alasan_nonaktif || "-"}</p>
                 </div>
 
-                <Section title="Data Peserta">
+                <Section title="Data Kepala Keluarga">
+                  <DetailRow label="No. KK" value={pn.noKk} />
+                  <DetailRow label="NIK Kepala Keluarga" value={pn.nikKk} />
+                  <DetailRow label="Nama Kepala Keluarga" value={pn.namaKk} />
+                  <DetailRow label="RT / RW" value={pn.rt || pn.rw ? `${pn.rt || "-"} / ${pn.rw || "-"}` : ""} />
+                  <DetailRow label="Desa/Kelurahan" value={pn.desa} />
+                  <DetailRow label="Kecamatan" value={pn.kecamatan} />
+                  <DetailRow label="Alamat" value={pn.alamat} />
+                </Section>
+
+                <Section title="Peserta">
                   <DetailRow label="Nama Peserta" value={raw.nama} />
                   <DetailRow label="NIK" value={raw.nik} />
-                  <DetailRow label="No. KK" value={raw.no_kk} />
-                  <DetailRow
-                    label="Kepala Keluarga"
-                    value={raw.nama_kepala_keluarga ? `${raw.nama_kepala_keluarga}${raw.nik_kepala_keluarga ? ` (${raw.nik_kepala_keluarga})` : ""}` : ""}
-                  />
-                  <DetailRow label="Jenis Kepesertaan" value={labelJenisKepesertaan(raw.jenis_kepesertaan)} />
-                  <DetailRow label="Hubungan dengan KK" value={raw.hubungan_keluarga} />
-                  <DetailRow label="Tempat, Tanggal Lahir" value={ttl(raw.tempat_lahir, raw.tanggal_lahir)} />
-                  <DetailRow label="RT / RW" value={raw.rt || raw.rw ? `${raw.rt || "-"} / ${raw.rw || "-"}` : ""} />
-                  <DetailRow label="Desa/Kelurahan" value={raw.kelurahan} />
-                  <DetailRow label="Kecamatan" value={raw.kecamatan} />
-                  <DetailRow label="Alamat" value={raw.alamat} />
-                  <DetailRow label="Pekerjaan" value={raw.pekerjaan} />
-                  <DetailRow label="Penghasilan/Bulan" value={raw.penghasilan_bulanan} />
-                  <DetailRow label="Status Kepemilikan Rumah" value={raw.status_kepemilikan_rumah} />
-                  <DetailRow label="Jumlah Tanggungan KK" value={raw.jumlah_tanggungan != null ? `${raw.jumlah_tanggungan} orang` : ""} />
-                  <DetailRow label="No. Kontak/WhatsApp" value={raw.no_kontak} />
+                  <DetailRow label="Jenis Kepesertaan" value={labelJenisKepesertaan(pn.jenis)} />
+                  <DetailRow label="Hubungan dengan KK" value={pn.hubungan} />
+                  <DetailRow label="Tempat, Tanggal Lahir" value={ttl(pn.tempat, pn.tanggal)} />
                 </Section>
+
+                <Section title="Kondisi Ekonomi">
+                  <DetailRow label="Status Kepemilikan Rumah" value={pn.rumah} />
+                  <DetailRow label="Pekerjaan" value={pn.pekerjaan} />
+                  <DetailRow label="Penghasilan/Bulan" value={pn.penghasilan} />
+                  <DetailRow label="Jumlah Tanggungan KK" value={pn.tanggungan != null ? `${pn.tanggungan} orang` : ""} />
+                  <DetailRow label="Deskripsi Kondisi" value={pn.kondisi} />
+                </Section>
+
+                <Section title="Kontak & Lokasi">
+                  <DetailRow label="No. Kontak/WhatsApp" value={pn.kontak} />
+                  <DetailRow
+                    label="Link Google Maps"
+                    value={
+                      pn.maps ? (
+                        <a href={pn.maps} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">
+                          Buka lokasi
+                        </a>
+                      ) : (
+                        ""
+                      )
+                    }
+                  />
+                </Section>
+
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                    Berkas Persyaratan{asal?.no_tiket ? ` (Tiket ${asal.no_tiket})` : ""}
+                  </h3>
+                  {!raw.usulan_id ? (
+                    <p className="text-xs text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-lg p-3">
+                      Peserta ini tidak tertaut ke usulan RT/RW (data lama atau diinput manual oleh petugas), jadi tidak ada berkas yang bisa ditampilkan.
+                    </p>
+                  ) : loadingAsal ? (
+                    <p className="text-xs text-gray-400">Memuat berkas...</p>
+                  ) : !asal ? (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+                      Usulan asal tidak ditemukan, atau akun ini tidak diizinkan membacanya.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <BerkasItem label="Kartu Keluarga (KK)" url={asal.dokumen_kk_url} />
+                      <BerkasItem label="Surat Keterangan Tidak Mampu (Desa)" url={asal.dokumen_sktm_url} />
+                      <BerkasItem label="Dokumen Keaslian (Desa)" url={asal.dokumen_keaslian_desa_url} />
+                      <BerkasItem label="Formulir Assessment (Lapad Ruhama)" url={asal.dokumen_assesment_url} />
+                      <BerkasItem label="Screenshot Desil" url={asal.dokumen_desil_url} />
+                      <BerkasItem label="Foto Rumah Tampak Depan" url={asal.foto_url} />
+                      <BerkasItem label={`KTP${asal.ktp_milik ? ` (milik ${String(asal.ktp_milik).toLowerCase()})` : ""}`} url={asal.dokumen_pendukung_url} />
+                      <BerkasItem label="Formulir dari Faskes (desil 6-10)" url={asal.dokumen_faskes_url} opsional />
+                      <BerkasItem label="Foto Pasien (desil 6-10)" url={asal.dokumen_foto_pasien_url} opsional />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

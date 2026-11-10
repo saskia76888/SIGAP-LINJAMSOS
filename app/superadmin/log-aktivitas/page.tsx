@@ -55,6 +55,9 @@ export default function LogAktivitasPage() {
     )
   }
 
+  // Garis pemisah antar kolom (tidak ada garis di kolom paling kanan)
+  const colLine = "border-r border-slate-200 dark:border-purple-900/40 last:border-r-0"
+
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto min-h-screen pb-20 font-sans text-slate-900 dark:text-slate-100">
       
@@ -72,18 +75,18 @@ export default function LogAktivitasPage() {
       </div>
 
       {/* Tabel Log Aktivitas */}
-      <div className="bg-white dark:bg-[#121629] border border-slate-200 dark:border-purple-950/40 rounded-2xl shadow-sm dark:shadow-lg overflow-hidden transition-all">
+      <div className="bg-white dark:bg-[#121629] border border-slate-300 dark:border-purple-900/50 rounded-2xl shadow-sm dark:shadow-lg overflow-hidden transition-all">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-purple-950/40 text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider font-bold">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-slate-100 dark:bg-slate-900/60 border-b-2 border-slate-300 dark:border-purple-900/60 text-slate-600 dark:text-slate-400 text-[11px] uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Waktu Aktivitas</th>
-                <th className="px-6 py-4">Pengguna (User)</th>
-                <th className="px-6 py-4">Aksi & Perubahan</th>
-                <th className="px-6 py-4">Catatan</th>
+                <th className={`px-6 py-4 whitespace-nowrap ${colLine}`}>Waktu Aktivitas</th>
+                <th className={`px-6 py-4 whitespace-nowrap ${colLine}`}>Pengguna (User)</th>
+                <th className={`px-6 py-4 whitespace-nowrap ${colLine}`}>Aksi & Perubahan</th>
+                <th className={`px-6 py-4 whitespace-nowrap ${colLine}`}>Catatan</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-purple-950/30 font-normal">
+            <tbody className="divide-y divide-slate-200 dark:divide-purple-900/40 font-normal">
               {data.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-16 text-center text-slate-400 dark:text-slate-500 text-xs italic">
@@ -92,25 +95,25 @@ export default function LogAktivitasPage() {
                 </tr>
               ) : (
                 data.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-purple-950/10 transition-colors group">
-                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                  <tr key={log.id} className="even:bg-slate-50/70 dark:even:bg-white/[0.02] hover:bg-purple-50/60 dark:hover:bg-purple-950/20 transition-colors group">
+                    <td className={`px-6 py-4 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap ${colLine}`}>
                       <div className="flex items-center gap-2">
                         <svg className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>{new Date(log.created_at).toLocaleString("id-ID")}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className={`px-6 py-4 ${colLine}`}>
                       <div className="font-bold text-slate-900 dark:text-white text-xs">{log.users?.nama || "-"}</div>
                       <div className="mt-1">
-                        <span className="text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-md uppercase tracking-wider border border-purple-200 dark:border-purple-800/40">
+                        <span className="text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-md uppercase tracking-wider border border-purple-200 dark:border-purple-800/40 whitespace-nowrap inline-block">
                           {roleLabel(log.users?.role || "-")}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <td className={`px-6 py-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed ${colLine}`}>
                       Mengubah status <span className="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-900/80 px-2 py-0.5 rounded border border-slate-200 dark:border-purple-950/60">{getTableLabel(log.ref_tabel)}</span> menjadi <span className="font-extrabold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-lg border border-purple-200 dark:border-purple-800/40 ml-1">{log.status}</span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 italic">
+                    <td className={`px-6 py-4 text-xs text-slate-500 dark:text-slate-400 italic ${colLine}`}>
                       {log.catatan ? `"${log.catatan}"` : "-"}
                     </td>
                   </tr>
