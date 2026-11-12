@@ -211,9 +211,6 @@ function AjukanBansosContent() {
     hubunganKeluarga: "",
     tempatLahirPeserta: "",
     tanggalLahirPeserta: "",
-    // [BARU] KTP milik siapa & nama penyakit (khusus desil 6-10)
-    ktpMilik: "",
-    penyakit: "",
   })
 
   useEffect(() => {
@@ -336,8 +333,6 @@ function AjukanBansosContent() {
             hubunganKeluarga: row.hubungan_keluarga || "",
             tempatLahirPeserta: row.tempat_lahir_peserta || "",
             tanggalLahirPeserta: isoKeTanggal(row.tanggal_lahir_peserta),
-            ktpMilik: row.ktp_milik || "",
-            penyakit: row.penyakit || "",
           }))
         }
       }
@@ -439,11 +434,6 @@ function AjukanBansosContent() {
       return
     }
 
-    if (!formData.ktpMilik) {
-      alert("Pilih KTP tersebut milik siapa")
-      return
-    }
-
     if ((!keaslianFile && !berkasLama.keaslian) || (!desilFile && !berkasLama.desil)) {
       alert("Dokumen keaslian dari Desa dan screenshot desil wajib diunggah")
       return
@@ -497,13 +487,11 @@ function AjukanBansosContent() {
         dokumen_kk_url: kkUrl,
         dokumen_sktm_url: sktmUrl,
         dokumen_assesment_url: assesmentUrl,
-        // [BARU] Keaslian desa, screenshot desil, formulir faskes, foto pasien, KTP milik, nama penyakit
+        // [BARU] Keaslian desa, screenshot desil, formulir faskes, foto pasien
         dokumen_keaslian_desa_url: keaslianUrl,
         dokumen_desil_url: desilUrl,
         dokumen_faskes_url: faskesUrl,
         dokumen_foto_pasien_url: pasienUrl,
-        ktp_milik: formData.ktpMilik,
-        penyakit: formData.penyakit || null,
         status_kepemilikan_rumah: formData.statusKepemilikanRumah,
         pekerjaan: formData.pekerjaan,
         penghasilan_bulanan: formData.penghasilanBulanan,
@@ -1003,12 +991,6 @@ function AjukanBansosContent() {
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">KTP <span className="text-red-500">*</span></label>
                     <p className="text-[10px] text-gray-400 -mt-1 mb-1.5">Kalau peserta belum punya KTP (misalnya anak), unggah KTP orang tua atau kepala keluarga.</p>
-                    <select name="ktpMilik" value={formData.ktpMilik} onChange={handleChange} className={`${inputCls} mb-2`}>
-                      <option value="">KTP milik siapa?</option>
-                      <option value="Peserta sendiri">Peserta sendiri</option>
-                      <option value="Orang tua">Orang tua</option>
-                      <option value="Kepala keluarga">Kepala keluarga</option>
-                    </select>
                     <input
                       type="file"
                       ref={dokumenInputRef}
@@ -1042,6 +1024,7 @@ function AjukanBansosContent() {
                           </svg>
                           <span className="text-xs font-medium text-gray-700">Klik untuk unggah KTP</span>
                           <span className="text-[9px] text-gray-400">Format: JPG, PNG, atau PDF</span>
+                          <span className="text-[9px] text-gray-400">Bila peserta tidak memiliki KTP, gunakan KTP orang tua</span>
                         </>
                       )}
                     </div>
@@ -1052,6 +1035,18 @@ function AjukanBansosContent() {
                       </p>
                     )}
                   </div>
+
+                  <BerkasUpload
+                    label="Foto Pasien"
+                    hint="Format: JPG, PNG, PDF (Maks. 5MB)"
+                    wajib={false}
+                    catatan="Wajib diisi bila desil 6-10"
+                    file={pasienFile}
+                    preview={pasienPreview}
+                    inputRef={pasienInputRef}
+                    urlLama={berkasLama.pasien}
+                    onSelect={(e) => handleBerkasSelect(e, setPasienFile, setPasienPreview)}
+                  />
 
                   <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
                     <div>
@@ -1072,28 +1067,6 @@ function AjukanBansosContent() {
                       urlLama={berkasLama.faskes}
                       onSelect={(e) => handleBerkasSelect(e, setFaskesFile, setFaskesPreview)}
                     />
-
-                    <BerkasUpload
-                      label="Foto Pasien"
-                      hint="Format: JPG, PNG, PDF (Maks. 5MB)"
-                      wajib={false}
-                      catatan="Wajib diisi bila desil 6-10"
-                      file={pasienFile}
-                      preview={pasienPreview}
-                      inputRef={pasienInputRef}
-                      urlLama={berkasLama.pasien}
-                      onSelect={(e) => handleBerkasSelect(e, setPasienFile, setPasienPreview)}
-                    />
-
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Penyakit (sesuai formulir faskes)</label>
-                      <input
-                        type="text" name="penyakit" value={formData.penyakit} onChange={handleChange}
-                        placeholder="Isi bila desil 6-10"
-                        className={inputCls}
-                      />
-                      <p className="text-[10px] text-gray-400 mt-1">Hanya bantuan membaca. Yang dinilai petugas adalah foto formulir faskes.</p>
-                    </div>
                   </div>
                 </div>
 
@@ -1110,7 +1083,7 @@ function AjukanBansosContent() {
                       formData.nik.length !== 16 ||
                       !formData.tempatLahirPeserta ||
                       !tanggalValid(formData.tanggalLahirPeserta) ||
-                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || (!fotoFile && !berkasLama.foto) || (!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment) || (!dokumenFile && !berkasLama.dokumen) || !formData.ktpMilik || (!keaslianFile && !berkasLama.keaslian) || (!desilFile && !berkasLama.desil)
+                      formData.keterangan.length < 30 || !formData.statusKepemilikanRumah || !formData.pekerjaan || !formData.penghasilanBulanan || formData.jumlahTanggungan === "" || parseInt(formData.jumlahTanggungan) < 0 || (!fotoFile && !berkasLama.foto) || (!kkFile && !berkasLama.kk) || (!sktmFile && !berkasLama.sktm) || (!assesmentFile && !berkasLama.assesment) || (!dokumenFile && !berkasLama.dokumen) || (!keaslianFile && !berkasLama.keaslian) || (!desilFile && !berkasLama.desil)
                     }
                     className="w-full bg-blue-950 hover:bg-blue-900 disabled:bg-gray-300 disabled:text-gray-500 text-white text-xs font-bold rounded-xl py-3 transition-all flex items-center justify-center gap-1"
                   >
@@ -1138,8 +1111,6 @@ function AjukanBansosContent() {
                     ["Jenis Kepesertaan", formData.jenisKepesertaan],
                     ["Hubungan dengan KK", formData.hubunganKeluarga],
                     ["TTL Peserta", `${formData.tempatLahirPeserta}, ${formData.tanggalLahirPeserta}`],
-                    ["KTP milik", formData.ktpMilik],
-                    ["Nama penyakit (desil 6-10)", formData.penyakit || "-"],
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between border-b border-gray-200/60 pb-1.5">
                       <span className="text-gray-400">{k}</span>
